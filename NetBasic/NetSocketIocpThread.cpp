@@ -36,8 +36,11 @@ void NetSocketIocpThread::run()
             &pOverlapped,
             INFINITE);
 
+        if ( NULL ==(DWORD)pSocketContext )
+        {
+            break;
+        }
 
-        // 读取传入的参数
         IO_CONTEXT* pIoContext = CONTAINING_RECORD(pOverlapped, IO_CONTEXT, m_Overlapped);
 
         if( !bReturn )

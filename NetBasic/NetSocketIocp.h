@@ -74,6 +74,7 @@ class NetSocketIocp : public NetSocketBase
 {
 public:
     NetSocketIocp();
+    ~NetSocketIocp();
 
     virtual bool init(const qint32 p_nThreadNum);
 

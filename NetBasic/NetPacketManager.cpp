@@ -36,6 +36,17 @@ void NetPacketManager::uninit()
     g_fnSuccessReceivePacket = NULL;
 
     delete g_pobjNetProtocolParseBase;
+
+    g_objPacketMutex.lock();
+    QMap<quint64, NetPacketBase*>::Iterator itr = g_mapPacket.begin();
+    while(itr != g_mapPacket.end())
+    {
+        delete itr.value();
+        ++itr;
+    }
+    g_mapPacket.clear();
+
+    g_objPacketMutex.unlock();
 }
 
 bool NetPacketManager::appendReceiveBuffer(quint64 p_nSocket, char *p_szData, qint32 p_nDataLen, bool &p_bIsPacketEnd, void* p_pobjSSL)
