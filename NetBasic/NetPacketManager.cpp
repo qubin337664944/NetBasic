@@ -49,7 +49,17 @@ void NetPacketManager::uninit()
     g_objPacketMutex.unlock();
 }
 
-bool NetPacketManager::appendReceiveBuffer(quint64 p_nSocket, char *p_szData, qint32 p_nDataLen, bool &p_bIsPacketEnd, void* p_pobjSSL)
+NetPacketBase *NetPacketManager::allocPacket()
+{
+    if(g_nProtocolType == NET_PROTOCOL_HTTP || g_nProtocolType == NET_PROTOCOL_HTTPS)
+    {
+        return new NetPacketHttp;
+    }
+
+    return NULL;
+}
+
+bool NetPacketManager::appendReceiveBuffer(quint64 p_nSocket, char* p_szData, qint32 p_nDataLen, bool& p_bIsPacketEnd, void* p_pobjSSL)
 {
     p_bIsPacketEnd = false;
 
@@ -100,6 +110,27 @@ bool NetPacketManager::appendReceiveBuffer(quint64 p_nSocket, char *p_szData, qi
     }
 
     return bRet;
+}
+
+bool NetPacketManager::processCallBack(NetPacketBase *p_pobjNetPacketBase)
+{
+    if(g_fnSuccessReceivePacket)
+    {
+        g_fnSuccessReceivePacket(p_pobjNetPacketBase, g_pMaster);
+    }
+
+    return true;
+}
+
+bool NetPacketManager::appendReceiveBuffer(NetPacketBase* p_pobjNetPacketBase, char *p_szData, qint32 p_nDataLen)
+{
+    bool bRet = g_pobjNetProtocolParseBase->parsePacket(p_pobjNetPacketBase, p_szData, p_nDataLen);
+    if(!bRet)
+    {
+        return bRet;
+    }
+
+    return true;
 }
 
 bool NetPacketManager::prepareResponse(NetPacketBase *p_pobjNetPacketBase, QByteArray &p_bytResponse)

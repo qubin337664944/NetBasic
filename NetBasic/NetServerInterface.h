@@ -7,6 +7,7 @@
 #include "NetEnum.h"
 #include "NetSocketBase.h"
 #include "NetPacketBase.h"
+#include "NetKeepAliveThread.h"
 
 class NetServerInterface
 {
@@ -28,6 +29,7 @@ public:
 
 private:
     NetSocketBase *m_pobjSocketBase;
+    NetKeepAliveThread objNetKeepAliveThread;
 };
 
 #endif // NETINTERFACE_H

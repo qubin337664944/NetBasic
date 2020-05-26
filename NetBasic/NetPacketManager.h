@@ -17,6 +17,11 @@ public:
     static void uninit();
 
     static bool appendReceiveBuffer(quint64 p_nSocket, char* p_szData, qint32 p_nDataLen, bool& p_bIsPacketEnd, void* p_pobjSSL = NULL);
+    static bool processCallBack(NetPacketBase* p_pobjNetPacketBase);
+
+    static NetPacketBase* allocPacket();
+    static bool appendReceiveBuffer(NetPacketBase* p_pobjNetPacketBase, char* p_szData, qint32 p_nDataLen);
+
     static bool prepareResponse(NetPacketBase* p_pobjNetPacketBase, QByteArray& p_bytResponse);
     static bool delPacket(quint64 p_nSocket);
 

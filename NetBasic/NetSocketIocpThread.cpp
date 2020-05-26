@@ -3,6 +3,7 @@
 #include "NetPacketManager.h"
 #include <QDebug>
 #include "NetLog.h"
+#include "NetKeepAliveThread.h"
 
 #ifdef WIN32
 
@@ -48,7 +49,7 @@ void NetSocketIocpThread::run()
             DWORD dwErr = GetLastError();
             if(ERROR_NETNAME_DELETED == dwErr)
             {
-                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")                                          .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
+                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4")
                        .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
                        .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                        .arg(pSocketContext->m_Socket)
@@ -68,7 +69,7 @@ void NetSocketIocpThread::run()
         {
             if(0 == dwBytesTransfered)
             {
-                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")                                          .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
+                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")
                        .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
                        .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                        .arg(pSocketContext->m_Socket)
@@ -91,7 +92,7 @@ void NetSocketIocpThread::run()
             }
             else if(pIoContext->m_OpType == NET_POST_SEND)
             {
-                bRet = doSend(pSocketContext, pIoContext);
+                bRet = doSend(pSocketContext, pIoContext, dwBytesTransfered);
             }
 
             if(!bRet)
@@ -129,18 +130,43 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
         return m_pobjNetSocketIocp->postAccept(pIoContext);
     }
 
+    NetKeepAliveInfo objNetKeepAliveInfo;
+    objNetKeepAliveInfo.nSocket = pIoContext->m_sockAccept;
+    objNetKeepAliveInfo.bCheckReceiveTime = true;
+    objNetKeepAliveInfo.bCheckSendTime = false;
+    objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
+    if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
+    {
+        NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
+               .arg(pIoContext->m_sockAccept));
+    }
+
     if(pIoContext->m_Overlapped.InternalHigh > 0)
     {
         NETLOG(NET_LOG_LEVEL_INFO, QString("accept socket, receive size:%1 socket:%2")
                .arg(pIoContext->m_Overlapped.InternalHigh)
                .arg(pIoContext->m_sockAccept));
 
-        bool bIsPacketEnd = false;
-        NetPacketManager::appendReceiveBuffer(pIoContext->m_sockAccept, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh, bIsPacketEnd);
-
-        if(bIsPacketEnd)
+        if(pIoContext->m_pobjNetPacketBase == NULL)
         {
+            pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
+            pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
+        }
+
+        NetPacketManager::appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh);
+        if(pIoContext->m_pobjNetPacketBase->m_bIsReceiveEnd)
+        {
+            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, false))
+            {
+                NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+            }
+
+            NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
+
             pIoContext->ResetBuffer();
+
+            delete pIoContext->m_pobjNetPacketBase;
+            pIoContext->m_pobjNetPacketBase = NULL;
             return m_pobjNetSocketIocp->postAccept(pIoContext);
         }
     }
@@ -161,17 +187,29 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
 
 bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
 {
+    if(pIoContext->m_pobjNetPacketBase == NULL)
+    {
+        pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
+        pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
+    }
+
     if(pIoContext->m_Overlapped.InternalHigh > 0)
     {
         NETLOG(NET_LOG_LEVEL_INFO, QString("doReceive success, receive size:%1 socket:%2")
                .arg(pIoContext->m_Overlapped.InternalHigh)
                .arg(pIoContext->m_sockAccept));
 
-        bool bIsPacketEnd = false;
-        NetPacketManager::appendReceiveBuffer(pIoContext->m_sockAccept, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh, bIsPacketEnd);
-        if(bIsPacketEnd)
+        NetPacketManager::appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh);
+        if(pIoContext->m_pobjNetPacketBase->m_bIsReceiveEnd)
         {
             NETLOG(NET_LOG_LEVEL_INFO, QString("receive a packet end, socket:%1").arg(pIoContext->m_sockAccept));
+
+            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, false))
+            {
+                NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+            }
+
+            NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
 
             delete pIoContext;
             return true;
@@ -181,8 +219,28 @@ bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *
     return m_pobjNetSocketIocp->postRecv(pIoContext);
 }
 
-bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
+bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext, qint32 p_nSendSuccessSize)
 {
+    NETLOG(NET_LOG_LEVEL_INFO, QString("doSend success, send size:%1,posttype:%2,socket:%3")
+           .arg(p_nSendSuccessSize)
+           .arg(pIoContext->m_OpType)
+           .arg(pSocketContext->m_Socket));
+
+    pIoContext->m_nSendIndex += p_nSendSuccessSize;
+
+    if(pIoContext->m_nSendIndex != pIoContext->m_nSendDataSize)
+    {
+        pIoContext->m_wsaBuf.buf = pIoContext->m_szSendData + pIoContext->m_nSendIndex;
+        pIoContext->m_wsaBuf.len = pIoContext->m_nSendDataSize - pIoContext->m_nSendIndex;
+
+        return m_pobjNetSocketIocp->postSend(pIoContext);
+    }
+
+    if(!NetKeepAliveThread::setCheckSend(pSocketContext->m_Socket, false))
+    {
+        NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(pIoContext->m_sockAccept));
+    }
+
     if(pIoContext->m_bIsCloseConnect)
     {
         NETLOG(NET_LOG_LEVEL_INFO, QString("doSend success, send size:%1,not keep alive, close connect, socket:%2, ip:%3, port:%4, posttype:%5")
@@ -192,25 +250,23 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
                .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                .arg(pIoContext->m_OpType));
 
-        closesocket(pSocketContext->m_Socket);
-
-        delete []pIoContext->m_wsaBuf.buf;
-        RELEASE(pIoContext);
-        RELEASE(pSocketContext);
-
+        doDisConnect(pSocketContext, pIoContext);
         return true;
     }
 
-    NETLOG(NET_LOG_LEVEL_INFO, QString("doSend success, send size:%1,posttype:%25")
-           .arg(pIoContext->m_wsaBuf.len)
-           .arg(pIoContext->m_OpType));
+    if(!NetKeepAliveThread::setCheckReceive(pSocketContext->m_Socket, true, 30))
+    {
+        NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+    }
 
-    IO_CONTEXT* pNewIoContext = new IO_CONTEXT;
-    pNewIoContext->m_OpType = NET_POST_RECEIVE;
-    pNewIoContext->m_sockAccept = pIoContext->m_sockAccept;
-
-    delete []pIoContext->m_wsaBuf.buf;
-    RELEASE(pIoContext);
+    pIoContext->m_OpType = NET_POST_RECEIVE;
+    if(pIoContext->m_szSendData)
+    {
+        delete [] pIoContext->m_szSendData;
+        pIoContext->m_szSendData = NULL;
+    }
+    pIoContext->m_nSendIndex = 0;
+    pIoContext->m_nSendDataSize = 0;
 
     return m_pobjNetSocketIocp->postRecv(pIoContext);
 }
@@ -218,6 +274,8 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
 bool NetSocketIocpThread::doDisConnect(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
 {
     NetPacketManager::delPacket(pSocketContext->m_Socket);
+
+    NetKeepAliveThread::delAlive(pSocketContext->m_Socket);
 
     closesocket(pSocketContext->m_Socket);
     RELEASE(pSocketContext);

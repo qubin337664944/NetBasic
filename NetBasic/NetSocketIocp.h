@@ -35,6 +35,10 @@ struct IO_CONTEXT
     char           m_szBuffer[MAX_BUFFER_LEN];                 // 这个是WSABUF里具体存字符的缓冲区
     qint32         m_OpType;                                   // 标识网络操作的类型(对应上面的枚举)
     bool           m_bIsCloseConnect;
+    char*          m_szSendData;
+    int            m_nSendDataSize;
+    int            m_nSendIndex;
+    NetPacketBase* m_pobjNetPacketBase;
 
     // 初始化
     IO_CONTEXT()
@@ -46,6 +50,10 @@ struct IO_CONTEXT
         m_wsaBuf.len = MAX_BUFFER_LEN;
         m_OpType     = NET_POST_ERROR;
         m_bIsCloseConnect = false;
+        m_szSendData  = NULL;
+        m_nSendDataSize = 0;
+        m_nSendIndex = 0;
+        m_pobjNetPacketBase = NULL;
     }
 
     // 释放掉Socket
@@ -54,6 +62,18 @@ struct IO_CONTEXT
         if( m_sockAccept!=INVALID_SOCKET )
         {
             m_sockAccept = INVALID_SOCKET;
+        }
+
+        if(m_szSendData)
+        {
+            delete []m_szSendData;
+            m_szSendData = NULL;
+        }
+
+        if(m_pobjNetPacketBase)
+        {
+            delete m_pobjNetPacketBase;
+            m_pobjNetPacketBase = NULL;
         }
     }
 
@@ -81,7 +101,6 @@ public:
     virtual bool start(const QString& p_strBindIP, const qint32 p_nPort);
 
     virtual bool send(NetPacketBase* p_pobjNetPacketBase);
-
 
     bool postAccept( IO_CONTEXT* pAcceptIoContext );
 

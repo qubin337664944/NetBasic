@@ -24,7 +24,7 @@ private:
 
     bool doReceive(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
 
-    bool doSend(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
+    bool doSend(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext , qint32 p_nSendSuccessSize = 0);
 
     bool doDisConnect(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
 

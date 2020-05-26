@@ -2,6 +2,7 @@
 #include "NetPacketManager.h"
 #include <QDebug>
 #include "NetLog.h"
+#include "NetKeepAliveThread.h"
 
 #ifdef WIN32
 
@@ -178,8 +179,12 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_wsaBuf.len = bytSend.size();
     memcpy(pobjIoContext->m_wsaBuf.buf, bytSend.data(), bytSend.length());
     pobjIoContext->m_sockAccept = p_pobjNetPacketBase->m_nSocket;
-    pobjIoContext->m_bIsCloseConnect = true;
+    pobjIoContext->m_bIsCloseConnect = false;
     pobjIoContext->m_OpType = NET_POST_SEND;
+
+    pobjIoContext->m_szSendData = pobjIoContext->m_wsaBuf.buf;
+    pobjIoContext->m_nSendDataSize = pobjIoContext->m_wsaBuf.len;
+    pobjIoContext->m_nSendIndex = 0;
 
     return postSend(pobjIoContext);
 }
@@ -255,6 +260,11 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("post WSASend failed, errorcode:%1, post socket:%2").arg(WSAGetLastError()).arg(pIoContext->m_sockAccept));
         return false;
+    }
+
+    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, true, SEND_PACKET_TIMEOUT_S))
+    {
+        NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
     }
 
     NETLOG(NET_LOG_LEVEL_INFO, QString("post WSASend success, post socket:%1").arg(pIoContext->m_sockAccept));

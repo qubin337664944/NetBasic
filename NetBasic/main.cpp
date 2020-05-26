@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     NetServerInterface objNetServerInterface;
-    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_WORNING,NULL);
+    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_TRACE,NULL);
     if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 1, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
