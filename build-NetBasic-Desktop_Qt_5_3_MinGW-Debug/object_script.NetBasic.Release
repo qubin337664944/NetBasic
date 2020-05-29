@@ -1,0 +1,14 @@
+INPUT(
+./release\main.o
+./release\NetSocketBase.o
+./release\NetSocketIocp.o
+./release\NetSocketEpoll.o
+./release\NetProtocolParseBase.o
+./release\NetProcotolParseHttp.o
+./release\NetPacketBase.o
+./release\NetPacketHttp.o
+./release\NetInterface.o
+./release\NetLog.o
+./release\NetPacketManager.o
+./release\NetSocketIocpThread.o
+);

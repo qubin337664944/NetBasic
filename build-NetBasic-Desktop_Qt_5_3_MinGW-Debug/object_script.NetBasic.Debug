@@ -1,0 +1,14 @@
+INPUT(
+./debug\main.o
+./debug\NetSocketBase.o
+./debug\NetSocketIocp.o
+./debug\NetSocketEpoll.o
+./debug\NetProtocolParseBase.o
+./debug\NetProcotolParseHttp.o
+./debug\NetPacketBase.o
+./debug\NetPacketHttp.o
+./debug\NetInterface.o
+./debug\NetLog.o
+./debug\NetPacketManager.o
+./debug\NetSocketIocpThread.o
+);

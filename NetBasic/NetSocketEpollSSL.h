@@ -53,9 +53,20 @@ struct EpollSSLPacket
 
     bool bKeepAlive;
 
+    NetPacketBase* pobjNetPacketBase;
+
     EpollSSLPacket()
     {
         init();
+    }
+
+    ~EpollSSLPacket()
+    {
+        if(pobjNetPacketBase)
+        {
+            delete pobjNetPacketBase;
+            pobjNetPacketBase = NULL;
+        }
     }
 
     void init()
@@ -69,6 +80,8 @@ struct EpollSSLPacket
         bSslConnected = false;
 
         bKeepAlive = false;
+
+        pobjNetPacketBase = NULL;
     }
 };
 

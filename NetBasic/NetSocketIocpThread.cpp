@@ -273,8 +273,6 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
 
 bool NetSocketIocpThread::doDisConnect(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
 {
-    NetPacketManager::delPacket(pSocketContext->m_Socket);
-
     NetKeepAliveThread::delAlive(pSocketContext->m_Socket);
 
     closesocket(pSocketContext->m_Socket);

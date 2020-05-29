@@ -18,7 +18,7 @@ typedef void (*CallAppReceivePacket)(NetPacketBase* p_pobjPacket, void* p_pMaste
 #define KEEPALIVE_MAXSIZE 10000
 
 #define RECEIVE_PACKET_TIMEOUT_S 30
-#define SEND_PACKET_TIMEOUT_S 30
+#define SEND_PACKET_TIMEOUT_S 100
 
 #define LISTEN_SIZE 30
 

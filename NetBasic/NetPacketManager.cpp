@@ -4,8 +4,6 @@
 #include "NetPacketHttp.h"
 #include "NetLog.h"
 
-QMap<quint64, NetPacketBase*> NetPacketManager::g_mapPacket;
-QMutex NetPacketManager::g_objPacketMutex;
 NetProtocolParseBase* NetPacketManager::g_pobjNetProtocolParseBase = NULL;
 CallAppReceivePacket NetPacketManager::g_fnSuccessReceivePacket;
 qint32 NetPacketManager::g_nProtocolType;
@@ -36,17 +34,6 @@ void NetPacketManager::uninit()
     g_fnSuccessReceivePacket = NULL;
 
     delete g_pobjNetProtocolParseBase;
-
-    g_objPacketMutex.lock();
-    QMap<quint64, NetPacketBase*>::Iterator itr = g_mapPacket.begin();
-    while(itr != g_mapPacket.end())
-    {
-        delete itr.value();
-        ++itr;
-    }
-    g_mapPacket.clear();
-
-    g_objPacketMutex.unlock();
 }
 
 NetPacketBase *NetPacketManager::allocPacket()
@@ -57,59 +44,6 @@ NetPacketBase *NetPacketManager::allocPacket()
     }
 
     return NULL;
-}
-
-bool NetPacketManager::appendReceiveBuffer(quint64 p_nSocket, char* p_szData, qint32 p_nDataLen, bool& p_bIsPacketEnd, void* p_pobjSSL)
-{
-    p_bIsPacketEnd = false;
-
-    g_objPacketMutex.lock();
-    NetPacketBase* pobjNetPacketBase = NULL;
-    if(g_mapPacket.contains(p_nSocket))
-    {
-        pobjNetPacketBase = g_mapPacket[p_nSocket];
-    }
-    else
-    {
-        if(g_nProtocolType == NET_PROTOCOL_HTTP || g_nProtocolType == NET_PROTOCOL_HTTPS)
-        {
-            pobjNetPacketBase = new NetPacketHttp;
-            pobjNetPacketBase->m_nSocket = p_nSocket;
-            pobjNetPacketBase->m_pobjSSL = p_pobjSSL;
-            g_mapPacket.insert(p_nSocket, pobjNetPacketBase);
-        }
-    }
-    g_objPacketMutex.unlock();
-
-    bool bRet = g_pobjNetProtocolParseBase->parsePacket(pobjNetPacketBase, p_szData, p_nDataLen);
-    if(!bRet)
-    {
-        g_objPacketMutex.lock();
-        g_mapPacket.remove(p_nSocket);
-        g_objPacketMutex.unlock();
-
-        delete pobjNetPacketBase;
-
-        return bRet;
-    }
-
-    if(bRet && pobjNetPacketBase->m_bIsReceiveEnd)
-    {
-        p_bIsPacketEnd = true;
-
-        if(g_fnSuccessReceivePacket)
-        {
-            g_fnSuccessReceivePacket(pobjNetPacketBase, g_pMaster);
-        }
-
-        g_objPacketMutex.lock();
-        g_mapPacket.remove(p_nSocket);
-        g_objPacketMutex.unlock();
-
-        delete pobjNetPacketBase;
-    }
-
-    return bRet;
 }
 
 bool NetPacketManager::processCallBack(NetPacketBase *p_pobjNetPacketBase)
@@ -145,18 +79,4 @@ bool NetPacketManager::prepareResponse(NetPacketBase *p_pobjNetPacketBase, QByte
     }
 
     return false;
-}
-
-bool NetPacketManager::delPacket(quint64 p_nSocket)
-{
-    g_objPacketMutex.lock();
-
-    if(g_mapPacket.contains(p_nSocket))
-    {
-       g_mapPacket.remove(p_nSocket);
-    }
-
-    g_objPacketMutex.unlock();
-
-    return true;
 }

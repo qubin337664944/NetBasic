@@ -42,6 +42,7 @@ typedef  struct addrinfo						ADDRINFO;
 #include <QVector>
 #include <QMap>
 #include <QMutex>
+#include "NetPacketBase.h"
 
 struct EpollPacket
 {
@@ -51,9 +52,19 @@ struct EpollPacket
 
     bool bKeepAlive;
 
+    NetPacketBase* pobjNetPacketBase;
+
     EpollPacket()
     {
         init();
+    }
+    ~EpollPacket()
+    {
+        if(pobjNetPacketBase)
+        {
+            delete pobjNetPacketBase;
+            pobjNetPacketBase = NULL;
+        }
     }
 
     void init()
@@ -62,6 +73,7 @@ struct EpollPacket
         nSendIndex = 0;
         nFd = 0;
         bKeepAlive = false;
+        pobjNetPacketBase = NULL;
     }
 };
 

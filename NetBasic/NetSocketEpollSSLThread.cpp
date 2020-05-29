@@ -3,6 +3,7 @@
 #include "NetSocketEpollSSL.h"
 #include <QDebug>
 #include "NetLog.h"
+#include "NetKeepAliveThread.h"
 
 #ifndef WIN32
 
@@ -132,6 +133,17 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
         pobjPacket->bTcpConnected = true;
         pobjPacket->bSslConnected = false;
 
+        NetKeepAliveInfo objNetKeepAliveInfo;
+        objNetKeepAliveInfo.nSocket = connfd;
+        objNetKeepAliveInfo.bCheckReceiveTime = true;
+        objNetKeepAliveInfo.bCheckSendTime = false;
+        objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
+        if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
+        {
+            NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
+                   .arg(connfd));
+        }
+
         struct epoll_event   objEv;
         objEv.data.ptr = pobjPacket;
         objEv.events=EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLERR | EPOLLHUP | EPOLLONESHOT;
@@ -140,6 +152,7 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,epoll_ctl add,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
             delete pobjPacket;
+            NetKeepAliveThread::delAlive(connfd);
             close(connfd);
             continue;
         }
@@ -152,6 +165,12 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
 
 bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket)
 {
+    if(p_pobjEpollPacket->pobjNetPacketBase == NULL)
+    {
+        p_pobjEpollPacket->pobjNetPacketBase =  NetPacketManager::allocPacket();
+        p_pobjEpollPacket->pobjNetPacketBase->m_nSocket = p_nFd;
+    }
+
     if(!p_pobjEpollPacket->bSslConnected)
     {
         return doSSLHandshake(p_nFd, p_pobjEpollPacket);
@@ -163,13 +182,25 @@ bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpol
          if(nLen > 0)
          {
              NETLOG(NET_LOG_LEVEL_TRACE, QString("thread:%1,socket:%2,SSL_read size:%3 success").arg(m_nThreadID).arg(p_nFd).arg(nLen));
+             p_pobjEpollPacket->pobjNetPacketBase->m_pobjSSL = p_pobjEpollPacket->pobjSsl;
 
-             bool bReceiveEnd = false;
-             NetPacketManager::appendReceiveBuffer(p_nFd, szDataTemp, nLen, bReceiveEnd, p_pobjEpollPacket->pobjSsl);
-             if(bReceiveEnd)
+             NetPacketManager::appendReceiveBuffer(p_pobjEpollPacket->pobjNetPacketBase, szDataTemp, nLen);
+             if(p_pobjEpollPacket->pobjNetPacketBase->m_bIsReceiveEnd)
              {
-                 NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,a packet receive end").arg(m_nThreadID).arg(p_nFd));
-                 break;
+                 if(!NetKeepAliveThread::setCheckReceive(p_nFd, false))
+                 {
+                     NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
+                 }
+
+                  NetPacketManager::processCallBack(p_pobjEpollPacket->pobjNetPacketBase);
+
+                  if(p_pobjEpollPacket->pobjNetPacketBase)
+                  {
+                        delete p_pobjEpollPacket->pobjNetPacketBase;
+                        p_pobjEpollPacket->pobjNetPacketBase = NULL;
+                  }
+
+                  return true;
              }
          }
 
@@ -345,8 +376,7 @@ void NetSocketEpollSSLThread::closeConnect(qint32 p_nFd, EpollSSLPacket *p_pobjE
 
     NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,close connect").arg(m_nThreadID).arg(p_nFd));
 
-    NetPacketManager::delPacket(p_nFd);
-
+    NetKeepAliveThread::delAlive(p_nFd);
     close(p_nFd);
     delete p_pobjEpollPacket;
 }

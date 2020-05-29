@@ -1,5 +1,6 @@
 #include "NetKeepAliveThread.h"
 #include "NetSocketIocp.h"
+#include "NetSocketEpollSSL.h"
 #include "NetLog.h"
 
 NetKeepAliveInfo* NetKeepAliveThread::g_vpobjNetKeepAliveInfo = NULL;
