@@ -19,17 +19,4 @@ NetPacketHttp::NetPacketHttp()
 
 NetPacketHttp::~NetPacketHttp()
 {
-    m_strMethod.clear();
-    m_strURL.clear();
-    m_strProtocol.clear();
-
-    m_mapHttpHead.clear();
-
-    m_bytHead.clear();
-    m_bytData.clear();
-
-    m_nContentLength = 0;
-
-    m_nResultCode = 0;
-    m_strResultMsg.clear();
 }

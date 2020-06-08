@@ -37,32 +37,58 @@ void NetSocketIocpThread::run()
             &pOverlapped,
             INFINITE);
 
+        DWORD dLastError = GetLastError();
+
         if ( NULL ==(DWORD)pSocketContext )
         {
+            NETLOG(NET_LOG_LEVEL_ERROR, QString("pSocketContext = null,quit"));
             break;
         }
 
+
         IO_CONTEXT* pIoContext = CONTAINING_RECORD(pOverlapped, IO_CONTEXT, m_Overlapped);
+        if(pIoContext->m_OpType == NET_POST_RECEIVE)
+        {
+            pSocketContext->appendReceiveContext(pIoContext);
+        }
+        else if(pIoContext->m_OpType == NET_POST_SEND)
+        {
+            pSocketContext->appendSendContext(pIoContext);
+        }
 
         if( !bReturn )
         {
-            DWORD dwErr = GetLastError();
-            if(ERROR_NETNAME_DELETED == dwErr)
+            if((dLastError == WAIT_TIMEOUT) || (dLastError == ERROR_NETNAME_DELETED))//客户端没有正常退出
             {
-                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4")
+                NETLOG(NET_LOG_LEVEL_ERROR, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5")
                        .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
                        .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                        .arg(pSocketContext->m_Socket)
-                       .arg(pIoContext->m_OpType));
+                       .arg(pIoContext->m_OpType)
+                       .arg(pIoContext->m_sockAccept));
 
-                doDisConnect(pSocketContext, pIoContext);
-                continue;
+                if(pIoContext->m_OpType == NET_POST_ACCEPT)
+                {
+                    closesocket(pIoContext->m_sockAccept);
+
+                    if(!m_pobjNetSocketIocp->postAccept(pIoContext))
+                    {
+                         RELEASE( pIoContext );
+                    }
+
+                    continue;
+                }
+                else if(pIoContext->m_OpType == NET_POST_RECEIVE)
+                {
+                    doDisConnect(pSocketContext, pIoContext);
+                }
+                else if(pIoContext->m_OpType == NET_POST_SEND)
+                {
+                    doDisConnect(pSocketContext, pIoContext);
+                }
             }
 
-            if(WAIT_TIMEOUT == dwErr)
-            {
-                continue;
-            }
+            continue;
         }
 
         if(bReturn)
@@ -84,6 +110,12 @@ void NetSocketIocpThread::run()
 
             if(pIoContext->m_OpType == NET_POST_ACCEPT)
             {
+                IO_CONTEXT* pNewIoContext = new IO_CONTEXT;
+                if(!m_pobjNetSocketIocp->postAccept(pNewIoContext))
+                {
+                     RELEASE( pNewIoContext );
+                }
+
                 bRet = doAccept(pSocketContext, pIoContext);
             }
             else if(pIoContext->m_OpType == NET_POST_RECEIVE)
@@ -125,9 +157,7 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
     if( false == m_pobjNetSocketIocp->associateWithIOCP( pNewSocketContext ) )
     {
         RELEASE( pNewSocketContext );
-
-        pIoContext->ResetBuffer();
-        return m_pobjNetSocketIocp->postAccept(pIoContext);
+        return false;
     }
 
     NetKeepAliveInfo objNetKeepAliveInfo;
@@ -135,6 +165,7 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
     objNetKeepAliveInfo.bCheckReceiveTime = true;
     objNetKeepAliveInfo.bCheckSendTime = false;
     objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
+    objNetKeepAliveInfo.pobjExtend = pNewSocketContext;
     if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
@@ -165,24 +196,22 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
 
             pIoContext->ResetBuffer();
 
-            delete pIoContext->m_pobjNetPacketBase;
-            pIoContext->m_pobjNetPacketBase = NULL;
-            return m_pobjNetSocketIocp->postAccept(pIoContext);
+            RELEASE(pIoContext);
+            return true;
         }
     }
 
-    IO_CONTEXT* pNewIoContext = new IO_CONTEXT;
-    pNewIoContext->m_OpType = NET_POST_RECEIVE;
-    pNewIoContext->m_sockAccept = pNewSocketContext->m_Socket;
-    if( false == m_pobjNetSocketIocp->postRecv(pNewIoContext) )
+    pNewSocketContext->appendReceiveContext(pIoContext);
+    if( false == m_pobjNetSocketIocp->postRecv(pIoContext) )
     {
-        RELEASE(pNewIoContext);
+        pNewSocketContext->cancelReceiveContext(pIoContext);
+
+        doDisConnect(pNewSocketContext, pIoContext);
+
         return false;
     }
 
-    pIoContext->ResetBuffer();
-
-    return m_pobjNetSocketIocp->postAccept(pIoContext);
+    return true;
 }
 
 bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
@@ -216,7 +245,14 @@ bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *
         }
     }
 
-    return m_pobjNetSocketIocp->postRecv(pIoContext);
+    pSocketContext->appendReceiveContext(pIoContext);
+    bool bRet = m_pobjNetSocketIocp->postRecv(pIoContext);
+    if(!bRet)
+    {
+        pSocketContext->cancelReceiveContext(pIoContext);
+    }
+
+    return bRet;
 }
 
 bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext, qint32 p_nSendSuccessSize)
@@ -233,7 +269,14 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
         pIoContext->m_wsaBuf.buf = pIoContext->m_szSendData + pIoContext->m_nSendIndex;
         pIoContext->m_wsaBuf.len = pIoContext->m_nSendDataSize - pIoContext->m_nSendIndex;
 
-        return m_pobjNetSocketIocp->postSend(pIoContext);
+        pSocketContext->appendSendContext(pIoContext);
+        bool bRet = m_pobjNetSocketIocp->postSend(pIoContext);
+        if(!bRet)
+        {
+            pSocketContext->cancelSendContext(pIoContext);
+        }
+
+        return bRet;
     }
 
     if(!NetKeepAliveThread::setCheckSend(pSocketContext->m_Socket, false))
@@ -250,8 +293,7 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
                .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                .arg(pIoContext->m_OpType));
 
-        doDisConnect(pSocketContext, pIoContext);
-        return true;
+        return false;
     }
 
     if(!NetKeepAliveThread::setCheckReceive(pSocketContext->m_Socket, true, 30))
@@ -268,16 +310,34 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
     pIoContext->m_nSendIndex = 0;
     pIoContext->m_nSendDataSize = 0;
 
-    return m_pobjNetSocketIocp->postRecv(pIoContext);
+    pSocketContext->appendReceiveContext(pIoContext);
+    bool bRet = m_pobjNetSocketIocp->postRecv(pIoContext);
+    if(!bRet)
+    {
+        pSocketContext->cancelReceiveContext(pIoContext);
+    }
+
+    return bRet;
 }
 
 bool NetSocketIocpThread::doDisConnect(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
 {
-    NetKeepAliveThread::delAlive(pSocketContext->m_Socket);
+    if(pSocketContext == m_pobjNetSocketIocp->m_pListenContext)
+    {
+        RELEASE(pIoContext);
+        return true;
+    }
 
-    closesocket(pSocketContext->m_Socket);
-    RELEASE(pSocketContext);
+    if(!pSocketContext->closeContext())
+    {
+        return false;
+    }
+
+    NetKeepAliveThread::delAlive(pSocketContext->m_Socket);
+    pSocketContext->closeSocket();
+
     RELEASE(pIoContext);
+    RELEASE(pSocketContext);
 
     return true;
 }

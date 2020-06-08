@@ -17,6 +17,8 @@ struct NetKeepAliveInfo
     qint32 nSendTimeOutS;
     qint32 nReceiveTimeOutS;
 
+    void* pobjExtend;
+
     NetKeepAliveInfo()
     {
         init();
@@ -32,6 +34,7 @@ struct NetKeepAliveInfo
         bCheckReceiveTime = false;
         nSendTimeOutS = 30;
         nReceiveTimeOutS = 30;
+        pobjExtend = NULL;
     }
 };
 
@@ -49,8 +52,8 @@ public:
 
     static bool addAlive(const NetKeepAliveInfo& p_objNetKeepAliveInfo);
     static bool delAlive(const quint64 p_nSocket);
-    static bool setCheckSend(const quint64 p_nSocket, const bool p_bCheck = true, const qint32 p_nSendTimeout = 30);
-    static bool setCheckReceive(const quint64 p_nSocket, const bool p_bCheck = true, const qint32 p_nReceiveTimeout = 30);
+    static bool setCheckSend(const quint64 p_nSocket, const bool p_bCheck = true, const qint32 p_nSendTimeout = 30, void* p_objContxt = NULL);
+    static bool setCheckReceive(const quint64 p_nSocket, const bool p_bCheck = true, const qint32 p_nReceiveTimeout = 30, void* p_objContxt = NULL);
     static bool modifySendTime(const quint64 p_nSocket);
     static bool modifyReceiveTime(const quint64 p_nSocket);
 

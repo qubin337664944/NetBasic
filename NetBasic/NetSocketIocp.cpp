@@ -74,6 +74,7 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
     if (INVALID_SOCKET == m_pListenContext->m_Socket)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("WSASocket INVALID_SOCKET, errorcode:%1").arg(WSAGetLastError()));
+        RELEASE(m_pListenContext);
         return false;
     }
     else
@@ -83,8 +84,9 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
 
     if( NULL== CreateIoCompletionPort( (HANDLE)m_pListenContext->m_Socket, m_hIOCompletionPort,(DWORD)m_pListenContext, 0))
     {
-        RELEASE_SOCKET( m_pListenContext->m_Socket );
         NETLOG(NET_LOG_LEVEL_ERROR, QString("CreateIoCompletionPort failed, errorcode:%1").arg(WSAGetLastError()));
+        RELEASE_SOCKET( m_pListenContext->m_Socket );
+        RELEASE(m_pListenContext);
         return false;
     }
     else
@@ -100,6 +102,8 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
     if (SOCKET_ERROR == bind(m_pListenContext->m_Socket, (struct sockaddr *) &ServerAddress, sizeof(ServerAddress)))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("bind port %1 failed, errorcode:%2").arg(p_nPort).arg(WSAGetLastError()));
+        RELEASE_SOCKET( m_pListenContext->m_Socket );
+        RELEASE(m_pListenContext);
         return false;
     }
     else
@@ -107,9 +111,11 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
         NETLOG(NET_LOG_LEVEL_INFO, QString("bind port %1 success").arg(p_nPort));
     }
 
-    if (SOCKET_ERROR == listen(m_pListenContext->m_Socket,SOMAXCONN))
+    if (SOCKET_ERROR == listen(m_pListenContext->m_Socket,LISTEN_SIZE))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("Listen failed, errorcode:%1").arg(WSAGetLastError()));
+        RELEASE_SOCKET( m_pListenContext->m_Socket );
+        RELEASE(m_pListenContext);
         return false;
     }
     else
@@ -130,6 +136,8 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
         NULL))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("WSAIoctl AcceptEx failed, errorcode:%1").arg(WSAGetLastError()));
+        RELEASE_SOCKET( m_pListenContext->m_Socket );
+        RELEASE(m_pListenContext);
         return false;
     }
 
@@ -145,18 +153,20 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
         NULL))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("WSAIoctl GuidGetAcceptExSockAddrs failed, errorcode:%1").arg(WSAGetLastError()));
+        RELEASE_SOCKET( m_pListenContext->m_Socket );
+        RELEASE(m_pListenContext);
         return false;
     }
 
-
-
-    for( int i = 0; i < 5; i++ )
+    for( int i = 0; i < LISTEN_SIZE; i++ )
     {
         IO_CONTEXT* pAcceptIoContext = new IO_CONTEXT;
-        if( false==this->postAccept( pAcceptIoContext ) )
+        if( false==this->postAccept( pAcceptIoContext) )
         {
-            RELEASE(pAcceptIoContext);
             NETLOG(NET_LOG_LEVEL_ERROR, QString("postAccept error, errorcode:%1").arg(WSAGetLastError()));
+            RELEASE(pAcceptIoContext);
+            RELEASE_SOCKET( m_pListenContext->m_Socket );
+            RELEASE(m_pListenContext);
             return false;
         }
     }
@@ -179,20 +189,41 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_wsaBuf.len = bytSend.size();
     memcpy(pobjIoContext->m_wsaBuf.buf, bytSend.data(), bytSend.length());
     pobjIoContext->m_sockAccept = p_pobjNetPacketBase->m_nSocket;
-    pobjIoContext->m_bIsCloseConnect = false;
+    if(p_pobjNetPacketBase->m_bKeepAlive)
+    {
+        pobjIoContext->m_bIsCloseConnect = false;
+    }
+    else
+    {
+        pobjIoContext->m_bIsCloseConnect = true;
+    }
+
     pobjIoContext->m_OpType = NET_POST_SEND;
 
     pobjIoContext->m_szSendData = pobjIoContext->m_wsaBuf.buf;
     pobjIoContext->m_nSendDataSize = pobjIoContext->m_wsaBuf.len;
     pobjIoContext->m_nSendIndex = 0;
 
-    return postSend(pobjIoContext);
+    bool bRet = postSend(pobjIoContext);
+    if(!bRet)
+    {
+        delete pobjIoContext;
+        pobjIoContext = NULL;
+    }
+
+    return bRet;
 }
 
 bool NetSocketIocp::postAccept(IO_CONTEXT *pAcceptIoContext)
 {
     DWORD dwBytes = 0;
     pAcceptIoContext->m_OpType = NET_POST_ACCEPT;
+
+    pAcceptIoContext->m_wsaBuf.buf = pAcceptIoContext->m_szBuffer;
+    pAcceptIoContext->m_wsaBuf.len = MAX_BUFFER_LEN;
+
+    pAcceptIoContext->ResetBuffer();
+
     WSABUF *p_wbuf   = &pAcceptIoContext->m_wsaBuf;
     OVERLAPPED *p_ol = &pAcceptIoContext->m_Overlapped;
 
@@ -227,6 +258,10 @@ bool NetSocketIocp::postRecv(IO_CONTEXT *pIoContext)
 {
     DWORD dwFlags = 0;
     DWORD dwBytes = 0;
+
+    pIoContext->m_wsaBuf.buf = pIoContext->m_szBuffer;
+    pIoContext->m_wsaBuf.len = MAX_BUFFER_LEN;
+
     WSABUF *p_wbuf   = &pIoContext->m_wsaBuf;
     OVERLAPPED *p_ol = &pIoContext->m_Overlapped;
 
@@ -255,16 +290,21 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
 
     pIoContext->ResetBuffer();
 
+    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, true, SEND_PACKET_TIMEOUT_S, pIoContext))
+    {
+        NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
+    }
+
     int nBytesSend = WSASend(pIoContext->m_sockAccept, p_wbuf, 1, &dwBytes, dwFlags, p_ol, NULL );
     if ((SOCKET_ERROR == nBytesSend) && (WSA_IO_PENDING != WSAGetLastError()))
     {
+        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, false, SEND_PACKET_TIMEOUT_S, pIoContext))
+        {
+            NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
+        }
+
         NETLOG(NET_LOG_LEVEL_ERROR, QString("post WSASend failed, errorcode:%1, post socket:%2").arg(WSAGetLastError()).arg(pIoContext->m_sockAccept));
         return false;
-    }
-
-    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, true, SEND_PACKET_TIMEOUT_S))
-    {
-        NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
     }
 
     NETLOG(NET_LOG_LEVEL_INFO, QString("post WSASend success, post socket:%1").arg(pIoContext->m_sockAccept));

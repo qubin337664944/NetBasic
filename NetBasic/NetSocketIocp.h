@@ -13,6 +13,9 @@
 
 #include <QQueue>
 #include <QVector>
+#include <QMutex>
+#include <QMap>
+#include <QDebug>
 
 #include "NetPacketBase.h"
 #include "NetSocketBase.h"
@@ -39,6 +42,7 @@ struct IO_CONTEXT
     int            m_nSendDataSize;
     int            m_nSendIndex;
     NetPacketBase* m_pobjNetPacketBase;
+    void*          m_pobjSocketContext;
 
     // 初始化
     IO_CONTEXT()
@@ -54,6 +58,7 @@ struct IO_CONTEXT
         m_nSendDataSize = 0;
         m_nSendIndex = 0;
         m_pobjNetPacketBase = NULL;
+        m_pobjSocketContext = NULL;
     }
 
     // 释放掉Socket
@@ -88,6 +93,108 @@ struct SOCKET_CONTEXT
 {
     SOCKET      m_Socket;                                  // 每一个客户端连接的Socket
     SOCKADDR_IN m_ClientAddr;                              // 客户端的地址
+
+    IO_CONTEXT* m_pobjSendContext;
+    IO_CONTEXT* m_pobjReceiveContext;
+
+    QMap<IO_CONTEXT*, IO_CONTEXT*> m_mapSendContext;
+    QMap<IO_CONTEXT*, IO_CONTEXT*> m_mapReceiveContext;
+
+    QMutex m_objSendMutex;
+    QMutex m_objReceiveMutex;
+    QMutex m_objCloseMutex;
+
+    bool m_bClosed;
+
+    SOCKET_CONTEXT()
+    {
+        m_bClosed = false;
+    }
+
+    ~SOCKET_CONTEXT()
+    {
+    }
+
+    void closeSocket()
+    {
+        QMutexLocker objLocker(&m_objCloseMutex);
+        if(m_bClosed)
+        {
+            return;
+        }
+
+        qDebug()<<"close:"<<m_Socket;
+        closesocket(m_Socket);
+        m_bClosed = true;
+    }
+
+    bool appendSendContext(IO_CONTEXT* pobjContext)
+    {
+        QMutexLocker objLocker(&m_objSendMutex);
+        if(m_mapSendContext.contains(pobjContext))
+        {
+            m_mapSendContext.remove(pobjContext);
+        }
+        else
+        {
+            m_mapSendContext.insert(pobjContext, pobjContext);
+        }
+
+        return true;
+    }
+
+    bool cancelSendContext(IO_CONTEXT* pobjContext)
+    {
+        QMutexLocker objLocker(&m_objSendMutex);
+        if(m_mapSendContext.contains(pobjContext))
+        {
+            m_mapSendContext.remove(pobjContext);
+        }
+
+        return true;
+    }
+
+    bool appendReceiveContext(IO_CONTEXT* pobjContext)
+    {
+        QMutexLocker objLocker(&m_objReceiveMutex);
+        if(m_mapReceiveContext.contains(pobjContext))
+        {
+            m_mapReceiveContext.remove(pobjContext);
+        }
+        else
+        {
+            m_mapReceiveContext.insert(pobjContext, pobjContext);
+        }
+        return true;
+    }
+
+    bool cancelReceiveContext(IO_CONTEXT* pobjContext)
+    {
+        QMutexLocker objLocker(&m_objReceiveMutex);
+        if(m_mapReceiveContext.contains(pobjContext))
+        {
+            m_mapReceiveContext.remove(pobjContext);
+        }
+
+        return true;
+    }
+
+    bool closeContext()
+    {
+        QMutexLocker objLockerSend(&m_objSendMutex);
+        if(m_mapSendContext.size() > 0)
+        {
+            return false;
+        }
+
+        QMutexLocker objLockerReceive(&m_objReceiveMutex);
+        if(m_mapReceiveContext.size() > 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
 };
 
 class NetSocketIocp : public NetSocketBase
@@ -102,7 +209,7 @@ public:
 
     virtual bool send(NetPacketBase* p_pobjNetPacketBase);
 
-    bool postAccept( IO_CONTEXT* pAcceptIoContext );
+    bool postAccept( IO_CONTEXT* pAcceptIoContext);
 
 
     bool postRecv( IO_CONTEXT* pIoContext );
