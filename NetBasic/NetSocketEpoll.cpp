@@ -2,6 +2,7 @@
 #include "NetPacketManager.h"
 #include "NetLog.h"
 #include "NetKeepAliveThread.h"
+#include <QDebug>
 
 #ifndef WIN32
 
@@ -155,6 +156,8 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
     if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, true, SEND_PACKET_TIMEOUT_S))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
+        delete pobjEpollSendPacket;
+        return false;
     }
 
     struct epoll_event stEvent;

@@ -32,6 +32,7 @@ void NetKeepAliveThread::run()
                     SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
                     if(pobjContext)
                     {
+                        pobjContext->m_bKeepAliveTimeOut = true;
                         pobjContext->closeSocket();
                         if(pobjContext->closeContext())
                         {
@@ -41,6 +42,8 @@ void NetKeepAliveThread::run()
 #else
                     close(g_vpobjNetKeepAliveInfo[i].nSocket);
 #endif
+                    QMutexLocker objLoceker(&g_objKeepAliveMutex);
+                    g_vpobjNetKeepAliveInfo[i].init();
                     continue;
                }
             }
@@ -54,6 +57,7 @@ void NetKeepAliveThread::run()
                     SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
                     if(pobjContext)
                     {
+                        pobjContext->m_bKeepAliveTimeOut = true;
                         pobjContext->closeSocket();
                         if(pobjContext->closeContext())
                         {
@@ -63,12 +67,14 @@ void NetKeepAliveThread::run()
 #else
                     close(g_vpobjNetKeepAliveInfo[i].nSocket);
 #endif
+                    QMutexLocker objLoceker(&g_objKeepAliveMutex);
+                    g_vpobjNetKeepAliveInfo[i].init();
                     continue;
                }
             }
         }
 
-        QThread::msleep(1000);
+        QThread::msleep(100);
     }
 }
 
@@ -98,7 +104,6 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize)
 bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo)
 {
     QMutexLocker objLoceker(&g_objKeepAliveMutex);
-
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
         if(!g_vpobjNetKeepAliveInfo[i].bIsAlive)
@@ -123,7 +128,6 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo)
 bool NetKeepAliveThread::delAlive(const quint64 p_nSocket)
 {
     QMutexLocker objLoceker(&g_objKeepAliveMutex);
-
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
         if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket)

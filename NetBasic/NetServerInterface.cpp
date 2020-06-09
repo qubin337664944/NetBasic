@@ -34,8 +34,15 @@ bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNu
 {
     NetPacketManager::init(p_nProtocol, p_fnAppReceivePacket, p_pMaster);
 
-    objNetKeepAliveThread.init(KEEPALIVE_MAXSIZE);
-    objNetKeepAliveThread.start();
+    if(!objNetKeepAliveThread.init(KEEPALIVE_MAXSIZE))
+    {
+        return false;
+    }
+
+    if(KEEPALIVE_DETECT)
+    {
+        objNetKeepAliveThread.start();
+    }
 
 #ifdef WIN32
     if(p_nProtocol == NET_PROTOCOL_HTTP)

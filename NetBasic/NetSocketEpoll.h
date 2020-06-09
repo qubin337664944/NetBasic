@@ -51,6 +51,7 @@ struct EpollPacket
     int nFd;
 
     bool bKeepAlive;
+    bool bCheck;
 
     NetPacketBase* pobjNetPacketBase;
 
@@ -74,6 +75,7 @@ struct EpollPacket
         nFd = 0;
         bKeepAlive = false;
         pobjNetPacketBase = NULL;
+        bCheck = true;
     }
 };
 

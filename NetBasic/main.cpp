@@ -20,7 +20,7 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
-    QByteArray bytReturn(5,'a');
+    QByteArray bytReturn(8,'a');
     pobjResPacket->m_bytData = bytReturn;
 
     pobjNetInterface->send(pobjResPacket);

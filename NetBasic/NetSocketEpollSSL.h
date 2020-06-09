@@ -52,6 +52,7 @@ struct EpollSSLPacket
     bool bSslConnected;
 
     bool bKeepAlive;
+    bool bCheck;
 
     NetPacketBase* pobjNetPacketBase;
 
@@ -80,6 +81,7 @@ struct EpollSSLPacket
         bSslConnected = false;
 
         bKeepAlive = false;
+        bCheck = false;
 
         pobjNetPacketBase = NULL;
     }

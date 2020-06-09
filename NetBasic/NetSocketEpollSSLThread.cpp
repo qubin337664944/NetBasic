@@ -140,8 +140,12 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
         objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
         if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
         {
-            NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
+            NETLOG(NET_LOG_LEVEL_ERROR, QString("add socket to keep alive failed, socket:%1")
                    .arg(connfd));
+
+            delete pobjPacket;
+            close(connfd);
+            continue;
         }
 
         struct epoll_event   objEv;
@@ -200,6 +204,9 @@ bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpol
                         p_pobjEpollPacket->pobjNetPacketBase = NULL;
                   }
 
+                  delete p_pobjEpollPacket;
+                  p_pobjEpollPacket = NULL;
+
                   return true;
              }
          }
@@ -257,8 +264,24 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
 
              if(pobjEpollSendPacket->nSendIndex == pobjEpollSendPacket->bytSendData.size())
              {
+                 if(!NetKeepAliveThread::setCheckSend(p_nFd, false))
+                 {
+                      NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(p_nFd));
+                      pobjEpollSendPacket->bCheck = false;
+                      return false;
+                 }
+
+                 NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,a packet send success,no keepalive,close socket").arg(m_nThreadID).arg(p_nFd));
+
                  if(pobjEpollSendPacket->bKeepAlive)
                  {
+                     if(!NetKeepAliveThread::setCheckReceive(p_nFd, true))
+                     {
+                          pobjEpollSendPacket->bCheck = false;
+                          NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
+                          return false;
+                     }
+
                      struct epoll_event   objEv;
                      objEv.data.ptr = p_pobjEpollPacket;
                      objEv.events=EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLERR | EPOLLHUP | EPOLLONESHOT;
@@ -266,13 +289,21 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
                      if(nRet < 0)
                      {
                          NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,epoll_ctl mod epoll in,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
+
+                         if(!NetKeepAliveThread::setCheckReceive(p_nFd, false))
+                         {
+                              pobjEpollSendPacket->bCheck = false;
+                              NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
+                              return false;
+                         }
+
                          return false;
                      }
+
                      return true;
                  }
                  else
                  {
-                     NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,a packet send success,no keepalive,close socket").arg(m_nThreadID).arg(p_nFd));
                      return false;
                  }
              }
@@ -376,8 +407,12 @@ void NetSocketEpollSSLThread::closeConnect(qint32 p_nFd, EpollSSLPacket *p_pobjE
 
     NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,close connect").arg(m_nThreadID).arg(p_nFd));
 
-    NetKeepAliveThread::delAlive(p_nFd);
-    close(p_nFd);
+    if(p_pobjEpollPacket->bCheck)
+    {
+        NetKeepAliveThread::delAlive(p_nFd);
+        close(p_nFd);
+    }
+
     delete p_pobjEpollPacket;
 }
 #endif

@@ -106,9 +106,12 @@ struct SOCKET_CONTEXT
 
     bool m_bClosed;
 
+    bool m_bKeepAliveTimeOut;
+
     SOCKET_CONTEXT()
     {
         m_bClosed = false;
+        m_bKeepAliveTimeOut = false;
     }
 
     ~SOCKET_CONTEXT()

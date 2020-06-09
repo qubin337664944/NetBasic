@@ -58,6 +58,11 @@ void NetSocketIocpThread::run()
 
         if( !bReturn )
         {
+            if(pSocketContext->m_bKeepAliveTimeOut && dLastError == ERROR_CONNECTION_ABORTED)
+            {
+                RELEASE(pIoContext);
+            }
+
             if((dLastError == WAIT_TIMEOUT) || (dLastError == ERROR_NETNAME_DELETED))//客户端没有正常退出
             {
                 NETLOG(NET_LOG_LEVEL_ERROR, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5")
