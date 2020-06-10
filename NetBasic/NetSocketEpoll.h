@@ -49,9 +49,9 @@ struct EpollPacket
     QByteArray bytSendData;
     int nSendIndex;
     int nFd;
+    int nSissionID;
 
     bool bKeepAlive;
-    bool bCheck;
 
     NetPacketBase* pobjNetPacketBase;
 
@@ -75,7 +75,7 @@ struct EpollPacket
         nFd = 0;
         bKeepAlive = false;
         pobjNetPacketBase = NULL;
-        bCheck = true;
+        nSissionID = 0;
     }
 };
 

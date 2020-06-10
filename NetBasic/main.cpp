@@ -4,6 +4,7 @@
 #include "NetPacketHttp.h"
 #include "NetServerInterface.h"
 #include <QDebug>
+#include <QFile>
 
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
@@ -16,10 +17,12 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_pobjSSL = pobjPacketHttp->m_pobjSSL;
     pobjResPacket->m_bKeepAlive = true;
     pobjResPacket->m_nSocket = pobjPacketHttp->m_nSocket;
+    pobjResPacket->m_nSissionID = pobjPacketHttp->m_nSissionID;
 
     pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
+
     QByteArray bytReturn(8,'a');
     pobjResPacket->m_bytData = bytReturn;
 

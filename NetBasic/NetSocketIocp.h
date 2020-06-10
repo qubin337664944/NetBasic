@@ -43,6 +43,7 @@ struct IO_CONTEXT
     int            m_nSendIndex;
     NetPacketBase* m_pobjNetPacketBase;
     void*          m_pobjSocketContext;
+    quint32        m_nSissionID;
 
     // 初始化
     IO_CONTEXT()
@@ -59,6 +60,7 @@ struct IO_CONTEXT
         m_nSendIndex = 0;
         m_pobjNetPacketBase = NULL;
         m_pobjSocketContext = NULL;
+        m_nSissionID = 0;
     }
 
     // 释放掉Socket
@@ -108,10 +110,13 @@ struct SOCKET_CONTEXT
 
     bool m_bKeepAliveTimeOut;
 
+    quint32 m_nSissionID;
+
     SOCKET_CONTEXT()
     {
         m_bClosed = false;
         m_bKeepAliveTimeOut = false;
+        m_nSissionID = 0;
     }
 
     ~SOCKET_CONTEXT()
@@ -126,7 +131,6 @@ struct SOCKET_CONTEXT
             return;
         }
 
-        qDebug()<<"close:"<<m_Socket;
         closesocket(m_Socket);
         m_bClosed = true;
     }

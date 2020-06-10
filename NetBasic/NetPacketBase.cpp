@@ -10,6 +10,7 @@ NetPacketBase::NetPacketBase()
     m_nStep = NET_PARSE_STEP_NOSTART;
     m_nSendIndex = 0;
     m_pobjSSL  = NULL;
+    m_nSissionID = 0;
 }
 
 NetPacketBase::~NetPacketBase()

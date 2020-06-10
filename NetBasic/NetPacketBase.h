@@ -15,6 +15,7 @@ public:
     QByteArray m_bytReceiveAllDate;
     bool m_bIsReceiveEnd;
     quint64 m_nSocket;
+    quint32 m_nSissionID;
 
     qint32 m_nStep;
 

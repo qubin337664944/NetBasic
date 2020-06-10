@@ -146,6 +146,8 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
     pobjEpollSendPacket->nFd = p_pobjNetPacketBase->m_nSocket;
     pobjEpollSendPacket->nSendIndex = 0;
     pobjEpollSendPacket->bKeepAlive = p_pobjNetPacketBase->m_bKeepAlive;
+    pobjEpollSendPacket->nSissionID = p_pobjNetPacketBase->m_nSissionID;
+
     if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, pobjEpollSendPacket->bytSendData))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed,socket:%1").arg(pobjEpollSendPacket->nFd));
@@ -153,7 +155,7 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, true, SEND_PACKET_TIMEOUT_S))
+    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, true, SEND_PACKET_TIMEOUT_S))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
@@ -169,7 +171,7 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("epoll_ctl mod EPOLLOUT failed,socket:%1,error:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(strerror(errno)));
         delete pobjEpollSendPacket;
-        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, false);
+        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID,  false);
         return false;
     }
 

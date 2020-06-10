@@ -58,6 +58,14 @@ void NetSocketIocpThread::run()
 
         if( !bReturn )
         {
+            NETLOG(NET_LOG_LEVEL_ERROR, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5 error:%6")
+                   .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
+                   .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
+                   .arg(pSocketContext->m_Socket)
+                   .arg(pIoContext->m_OpType)
+                   .arg(pIoContext->m_sockAccept)
+                   .arg(dLastError));
+
             if(pSocketContext->m_bKeepAliveTimeOut && dLastError == ERROR_CONNECTION_ABORTED)
             {
                 RELEASE(pIoContext);
@@ -65,13 +73,6 @@ void NetSocketIocpThread::run()
 
             if((dLastError == WAIT_TIMEOUT) || (dLastError == ERROR_NETNAME_DELETED))//客户端没有正常退出
             {
-                NETLOG(NET_LOG_LEVEL_ERROR, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5")
-                       .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
-                       .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
-                       .arg(pSocketContext->m_Socket)
-                       .arg(pIoContext->m_OpType)
-                       .arg(pIoContext->m_sockAccept));
-
                 if(pIoContext->m_OpType == NET_POST_ACCEPT)
                 {
                     closesocket(pIoContext->m_sockAccept);
@@ -171,10 +172,17 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
     objNetKeepAliveInfo.bCheckSendTime = false;
     objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
     objNetKeepAliveInfo.pobjExtend = pNewSocketContext;
-    if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
+    quint32 nSissionID = 0;
+    if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo, nSissionID))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
                .arg(pIoContext->m_sockAccept));
+        return false;
+    }
+    else
+    {
+        pNewSocketContext->m_nSissionID = nSissionID;
+        pIoContext->m_nSissionID = nSissionID;
     }
 
     if(pIoContext->m_Overlapped.InternalHigh > 0)
@@ -187,20 +195,20 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
         {
             pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
             pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
+            pIoContext->m_pobjNetPacketBase->m_nSissionID = pNewSocketContext->m_nSissionID;
         }
 
         NetPacketManager::appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh);
         if(pIoContext->m_pobjNetPacketBase->m_bIsReceiveEnd)
         {
-            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, false))
+            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, false))
             {
                 NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+                RELEASE(pIoContext);
+                return false;
             }
 
             NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
-
-            pIoContext->ResetBuffer();
-
             RELEASE(pIoContext);
             return true;
         }
@@ -210,7 +218,6 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
     if( false == m_pobjNetSocketIocp->postRecv(pIoContext) )
     {
         pNewSocketContext->cancelReceiveContext(pIoContext);
-
         doDisConnect(pNewSocketContext, pIoContext);
 
         return false;
@@ -225,6 +232,7 @@ bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *
     {
         pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
         pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
+        pIoContext->m_pobjNetPacketBase->m_nSissionID = pIoContext->m_nSissionID;
     }
 
     if(pIoContext->m_Overlapped.InternalHigh > 0)
@@ -238,9 +246,11 @@ bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *
         {
             NETLOG(NET_LOG_LEVEL_INFO, QString("receive a packet end, socket:%1").arg(pIoContext->m_sockAccept));
 
-            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, false))
+            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, false))
             {
                 NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+                delete pIoContext;
+                return false;
             }
 
             NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
@@ -284,9 +294,10 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
         return bRet;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(pSocketContext->m_Socket, false))
+    if(!NetKeepAliveThread::setCheckSend(pSocketContext->m_Socket, pSocketContext->m_nSissionID, false))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(pIoContext->m_sockAccept));
+        return false;
     }
 
     if(pIoContext->m_bIsCloseConnect)
@@ -301,9 +312,10 @@ bool NetSocketIocpThread::doSend(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIo
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckReceive(pSocketContext->m_Socket, true, 30))
+    if(!NetKeepAliveThread::setCheckReceive(pSocketContext->m_Socket, pSocketContext->m_nSissionID, true, 30))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
+        return false;
     }
 
     pIoContext->m_OpType = NET_POST_RECEIVE;
@@ -338,11 +350,13 @@ bool NetSocketIocpThread::doDisConnect(SOCKET_CONTEXT *pSocketContext, IO_CONTEX
         return false;
     }
 
-    NetKeepAliveThread::delAlive(pSocketContext->m_Socket);
-    pSocketContext->closeSocket();
+    if(NetKeepAliveThread::delAlive(pSocketContext->m_Socket, pSocketContext->m_nSissionID))
+    {
+        pSocketContext->closeSocket();
 
-    RELEASE(pIoContext);
-    RELEASE(pSocketContext);
+        RELEASE(pIoContext);
+        RELEASE(pSocketContext);
+    }
 
     return true;
 }

@@ -208,6 +208,7 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
     pobjEpollSendPacket->nFd = p_pobjNetPacketBase->m_nSocket;
     pobjEpollSendPacket->nSendIndex = 0;
     pobjEpollSendPacket->pobjSsl = (SSL*)p_pobjNetPacketBase->m_pobjSSL;
+    pobjEpollSendPacket->nSissionID = p_pobjNetPacketBase->m_nSissionID;
     pobjEpollSendPacket->bKeepAlive = p_pobjNetPacketBase->m_bKeepAlive;
 
     if(pobjEpollSendPacket->pobjSsl)
@@ -227,7 +228,7 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, true, SEND_PACKET_TIMEOUT_S))
+    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, true, SEND_PACKET_TIMEOUT_S))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
     }
@@ -239,7 +240,7 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
     int nRet = epoll_ctl(m_nEpfd, EPOLL_CTL_MOD, p_pobjNetPacketBase->m_nSocket,&stEvent);
     if(nRet < 0)
     {
-        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, false);
+        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, false);
         delete pobjEpollSendPacket;
         NETLOG(NET_LOG_LEVEL_ERROR, QString("epoll_ctl mod EPOLLOUT failed, socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         return false;

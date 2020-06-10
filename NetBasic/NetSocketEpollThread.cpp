@@ -119,14 +119,14 @@ bool NetSocketEpollThread::doAccept(qint32 p_nListenFd, EpollPacket* p_pobjEpoll
         EpollPacket *pobjPacket = new EpollPacket;
         pobjPacket->nFd = connfd;
         pobjPacket->nSendIndex = 0;
-        pobjPacket->bCheck = true;
 
         NetKeepAliveInfo objNetKeepAliveInfo;
         objNetKeepAliveInfo.nSocket = connfd;
         objNetKeepAliveInfo.bCheckReceiveTime = true;
         objNetKeepAliveInfo.bCheckSendTime = false;
         objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
-        if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo))
+        quint32 nSissionID = 0;
+        if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo, nSissionID))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("add socket to keep alive failed, socket:%1")
                    .arg(connfd));
@@ -134,6 +134,10 @@ bool NetSocketEpollThread::doAccept(qint32 p_nListenFd, EpollPacket* p_pobjEpoll
             delete pobjPacket;
             close(connfd);
             continue;
+        }
+        else
+        {
+             pobjPacket->nSissionID = nSissionID;
         }
 
         struct epoll_event   objEv;
@@ -144,8 +148,7 @@ bool NetSocketEpollThread::doAccept(qint32 p_nListenFd, EpollPacket* p_pobjEpoll
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,epoll_ctl add,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
             delete pobjPacket;
-            NetKeepAliveThread::delAlive(connfd);
-            close(connfd);
+            NetKeepAliveThread::delAlive(connfd, nSissionID);
             continue;
         }
 
@@ -161,6 +164,7 @@ bool NetSocketEpollThread::doReceive(qint32 p_nFd, EpollPacket* p_pobjEpollPacke
     {
         p_pobjEpollPacket->pobjNetPacketBase =  NetPacketManager::allocPacket();
         p_pobjEpollPacket->pobjNetPacketBase->m_nSocket = p_nFd;
+        p_pobjEpollPacket->pobjNetPacketBase->m_nSissionID = p_pobjEpollPacket->nSissionID;
     }
 
     while(1)
@@ -173,7 +177,7 @@ bool NetSocketEpollThread::doReceive(qint32 p_nFd, EpollPacket* p_pobjEpollPacke
              NetPacketManager::appendReceiveBuffer(p_pobjEpollPacket->pobjNetPacketBase, szDataTemp, nLen);
              if(p_pobjEpollPacket->pobjNetPacketBase->m_bIsReceiveEnd)
              {
-                 if(!NetKeepAliveThread::setCheckReceive(p_nFd, false))
+                 if(!NetKeepAliveThread::setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID, false))
                  {
                      NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                  }
@@ -251,9 +255,8 @@ bool NetSocketEpollThread::doSend(qint32 p_nFd, EpollPacket *p_pobjEpollPacket)
 
              if(pobjEpollSendPacket->nSendIndex == pobjEpollSendPacket->bytSendData.size())
              {
-                    if(!NetKeepAliveThread::setCheckSend(p_nFd, false))
+                    if(!NetKeepAliveThread::setCheckSend(p_nFd, pobjEpollSendPacket->nSissionID, false))
                     {
-                         p_pobjEpollPacket->bCheck = false;
                          NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(p_nFd));
                          return false;
                     }
@@ -262,9 +265,8 @@ bool NetSocketEpollThread::doSend(qint32 p_nFd, EpollPacket *p_pobjEpollPacket)
 
                     if(p_pobjEpollPacket->bKeepAlive)
                     {
-                        if(!NetKeepAliveThread::setCheckReceive(p_nFd, true))
+                        if(!NetKeepAliveThread::setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID, true))
                         {
-                             p_pobjEpollPacket->bCheck = false;
                              NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                              return false;
                         }
@@ -275,9 +277,8 @@ bool NetSocketEpollThread::doSend(qint32 p_nFd, EpollPacket *p_pobjEpollPacket)
                         int nRet = epoll_ctl(m_nEpFd,EPOLL_CTL_MOD,p_nFd,&objEv);
                         if(nRet<0)
                         {
-                            if(!NetKeepAliveThread::setCheckReceive(p_nFd, false))
+                            if(!NetKeepAliveThread::setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID, false))
                             {
-                                 p_pobjEpollPacket->bCheck = false;
                                  NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                                  return false;
                             }
@@ -338,11 +339,7 @@ void NetSocketEpollThread::closeConnect(qint32 p_nFd, EpollPacket *p_pobjEpollPa
 {
     NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,close connect").arg(m_nThreadID).arg(p_nFd));
 
-    if(p_pobjEpollPacket->bCheck)
-    {
-        NetKeepAliveThread::delAlive(p_nFd);
-        close(p_nFd);
-    }
+    NetKeepAliveThread::delAlive(p_nFd, p_pobjEpollPacket->nSissionID);
 
     if(p_pobjEpollPacket)
     {

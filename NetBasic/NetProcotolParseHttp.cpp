@@ -25,7 +25,7 @@ bool NetProcotolParseHttp::parsePacket(NetPacketBase *p_pobjHttpPacket, char *p_
     if(pobjHttpPacket->m_nStep == NET_PARSE_STEP_HEAD_OK)
     {
         pobjHttpPacket->m_bytData.append(p_szAppendData, p_nAppendDataLen);
-        if(pobjHttpPacket->m_bytData.length() == pobjHttpPacket->m_nContentLength)
+        if(pobjHttpPacket->m_bytData.length() >= pobjHttpPacket->m_nContentLength)
         {
             pobjHttpPacket->m_nStep = NET_PARSE_STEP_DATA_OK;
             pobjHttpPacket->m_bIsReceiveEnd = true;

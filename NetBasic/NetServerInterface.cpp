@@ -8,6 +8,7 @@
 
 NetServerInterface::NetServerInterface()
 {
+    m_pobjSocketBase = NULL;
 }
 
 NetServerInterface::~NetServerInterface()
@@ -68,11 +69,21 @@ bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNu
 
 bool NetServerInterface::start(const QString &p_strBindIP, const qint32 p_nPort)
 {
+    if(m_pobjSocketBase == NULL)
+    {
+        return false;
+    }
+
     return m_pobjSocketBase->start(p_strBindIP, p_nPort);
 }
 
 bool NetServerInterface::send(NetPacketBase *pobjNetPacketBase)
 {
+    if(m_pobjSocketBase == NULL)
+    {
+        return false;
+    }
+
     return m_pobjSocketBase->send(pobjNetPacketBase);
 }
 

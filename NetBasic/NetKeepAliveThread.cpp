@@ -2,9 +2,11 @@
 #include "NetSocketIocp.h"
 #include "NetSocketEpollSSL.h"
 #include "NetLog.h"
+#include <QDebug>
 
 NetKeepAliveInfo* NetKeepAliveThread::g_vpobjNetKeepAliveInfo = NULL;
 qint32   NetKeepAliveThread::g_nNetKeepAliveInfoSize = 0;
+quint32 NetKeepAliveThread::g_nSissionID = 1;
 QMutex NetKeepAliveThread::g_objKeepAliveMutex;
 
 #ifdef WIN32
@@ -28,23 +30,26 @@ void NetKeepAliveThread::run()
                if(g_vpobjNetKeepAliveInfo[i].objLastSendTime.secsTo(objDateTime) > g_vpobjNetKeepAliveInfo[i].nSendTimeOutS)
                {
                     NETLOG(NET_LOG_LEVEL_WORNING, QString("socket:%1, send time out:%2 s").arg(g_vpobjNetKeepAliveInfo[i].nSocket).arg(g_vpobjNetKeepAliveInfo[i].nSendTimeOutS));
-#ifdef WIN32
-                    SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
-                    if(pobjContext)
-                    {
-                        pobjContext->m_bKeepAliveTimeOut = true;
-                        pobjContext->closeSocket();
-                        if(pobjContext->closeContext())
-                        {
-                            RELEASE(pobjContext);
-                        }
-                    }
-#else
-                    close(g_vpobjNetKeepAliveInfo[i].nSocket);
-#endif
                     QMutexLocker objLoceker(&g_objKeepAliveMutex);
-                    g_vpobjNetKeepAliveInfo[i].init();
-                    continue;
+                    if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
+                    {
+#ifdef WIN32
+                        SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
+                        if(pobjContext)
+                        {
+                            pobjContext->m_bKeepAliveTimeOut = true;
+                            pobjContext->closeSocket();
+                            if(pobjContext->closeContext())
+                            {
+                                RELEASE(pobjContext);
+                            }
+                        }
+#else
+                        close(g_vpobjNetKeepAliveInfo[i].nSocket);
+#endif
+                        g_vpobjNetKeepAliveInfo[i].init();
+                        continue;
+                    }
                }
             }
 
@@ -53,23 +58,26 @@ void NetKeepAliveThread::run()
                if(g_vpobjNetKeepAliveInfo[i].objLastReceiveTime.secsTo(objDateTime) > g_vpobjNetKeepAliveInfo[i].nReceiveTimeOutS)
                {
                     NETLOG(NET_LOG_LEVEL_WORNING, QString("socket:%1, receive time out:%2 s").arg(g_vpobjNetKeepAliveInfo[i].nSocket).arg(g_vpobjNetKeepAliveInfo[i].nReceiveTimeOutS));
-#ifdef WIN32
-                    SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
-                    if(pobjContext)
-                    {
-                        pobjContext->m_bKeepAliveTimeOut = true;
-                        pobjContext->closeSocket();
-                        if(pobjContext->closeContext())
-                        {
-                            RELEASE(pobjContext);
-                        }
-                    }
-#else
-                    close(g_vpobjNetKeepAliveInfo[i].nSocket);
-#endif
                     QMutexLocker objLoceker(&g_objKeepAliveMutex);
-                    g_vpobjNetKeepAliveInfo[i].init();
-                    continue;
+                    if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
+                    {
+#ifdef WIN32
+                        SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[i].pobjExtend;
+                        if(pobjContext)
+                        {
+                            pobjContext->m_bKeepAliveTimeOut = true;
+                            pobjContext->closeSocket();
+                            if(pobjContext->closeContext())
+                            {
+                                RELEASE(pobjContext);
+                            }
+                        }
+#else
+                        close(g_vpobjNetKeepAliveInfo[i].nSocket);
+#endif
+                        g_vpobjNetKeepAliveInfo[i].init();
+                        continue;
+                    }
                }
             }
         }
@@ -101,8 +109,10 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize)
     return true;
 }
 
-bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo)
+bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo, quint32 &p_nSissionID)
 {
+    p_nSissionID = 0;
+
     QMutexLocker objLoceker(&g_objKeepAliveMutex);
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
@@ -117,6 +127,13 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo)
             g_vpobjNetKeepAliveInfo[i].objLastReceiveTime = p_objNetKeepAliveInfo.objLastReceiveTime;
             g_vpobjNetKeepAliveInfo[i].bCheckSendTime = p_objNetKeepAliveInfo.bCheckSendTime;
             g_vpobjNetKeepAliveInfo[i].pobjExtend = p_objNetKeepAliveInfo.pobjExtend;
+            g_vpobjNetKeepAliveInfo[i].nSissionID = g_nSissionID++;
+            p_nSissionID = g_vpobjNetKeepAliveInfo[i].nSissionID;
+
+            if(g_vpobjNetKeepAliveInfo[i].nSissionID > 9999999)
+            {
+                g_nSissionID = 1;
+            }
 
             return true;
         }
@@ -125,13 +142,17 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo)
     return false;
 }
 
-bool NetKeepAliveThread::delAlive(const quint64 p_nSocket)
+bool NetKeepAliveThread::delAlive(const quint64 p_nSocket, const quint32 p_nSissionID)
 {
     QMutexLocker objLoceker(&g_objKeepAliveMutex);
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
-        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket)
+        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive
+                && g_vpobjNetKeepAliveInfo[i].nSissionID > 0 && g_vpobjNetKeepAliveInfo[i].nSissionID == p_nSissionID)
         {
+#ifndef WIN32
+            close(p_nSocket);
+#endif
             g_vpobjNetKeepAliveInfo[i].init();
             return true;
         }
@@ -140,11 +161,14 @@ bool NetKeepAliveThread::delAlive(const quint64 p_nSocket)
     return false;
 }
 
-bool NetKeepAliveThread::setCheckSend(const quint64 p_nSocket, const bool p_bCheck, const qint32 p_nSendTimeout, void* p_objContxt)
+bool NetKeepAliveThread::setCheckSend(const quint64 p_nSocket, const quint32 p_nSissionID, const bool p_bCheck, const qint32 p_nSendTimeout, void* p_objContxt)
 {
+    QMutexLocker objLoceker(&g_objKeepAliveMutex);
+
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
-        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive)
+        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive
+                && p_nSissionID > 0 && g_vpobjNetKeepAliveInfo[i].nSissionID == p_nSissionID)
         {
             if(p_bCheck)
             {
@@ -174,11 +198,14 @@ bool NetKeepAliveThread::setCheckSend(const quint64 p_nSocket, const bool p_bChe
     return false;
 }
 
-bool NetKeepAliveThread::setCheckReceive(const quint64 p_nSocket, const bool p_bCheck, const qint32 p_nReceiveTimeout, void* p_objContxt)
+bool NetKeepAliveThread::setCheckReceive(const quint64 p_nSocket, const quint32 p_nSissionID, const bool p_bCheck, const qint32 p_nReceiveTimeout, void* p_objContxt)
 {
+    QMutexLocker objLoceker(&g_objKeepAliveMutex);
+
     for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
-        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive)
+        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive
+                && p_nSissionID > 0 && g_vpobjNetKeepAliveInfo[i].nSissionID == p_nSissionID)
         {
             if(p_bCheck)
             {
@@ -202,34 +229,6 @@ bool NetKeepAliveThread::setCheckReceive(const quint64 p_nSocket, const bool p_b
 #endif
 
             g_vpobjNetKeepAliveInfo[i].bCheckReceiveTime = p_bCheck;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool NetKeepAliveThread::modifySendTime(const quint64 p_nSocket)
-{
-    for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
-    {
-        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive)
-        {
-            g_vpobjNetKeepAliveInfo[i].objLastSendTime = QDateTime::currentDateTime();
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool NetKeepAliveThread::modifyReceiveTime(const quint64 p_nSocket)
-{
-    for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
-    {
-        if(g_vpobjNetKeepAliveInfo[i].nSocket == p_nSocket && g_vpobjNetKeepAliveInfo[i].bIsAlive)
-        {
-            g_vpobjNetKeepAliveInfo[i].objLastReceiveTime = QDateTime::currentDateTime();
             return true;
         }
     }
