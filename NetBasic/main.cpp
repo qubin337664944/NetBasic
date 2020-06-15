@@ -23,7 +23,7 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
 
-    QByteArray bytReturn(8,'a');
+    QByteArray bytReturn(9,'a');
     pobjResPacket->m_bytData = bytReturn;
 
     pobjNetInterface->send(pobjResPacket);
@@ -36,12 +36,19 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     NetServerInterface objNetServerInterface;
-    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 10, HttpCall, &objNetServerInterface))
+    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_TRACE,NULL);
+    //NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 1, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
+        return a.exec();
     }
-    objNetServerInterface.start("0.0.0.0", 80);
+
+    if(!objNetServerInterface.start("0.0.0.0", 443))
+    {
+        qDebug()<<"objNetInterface.start error";
+        return a.exec();
+    }
 
     return a.exec();
 }

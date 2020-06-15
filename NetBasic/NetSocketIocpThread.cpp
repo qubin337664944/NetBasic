@@ -185,45 +185,7 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
         pIoContext->m_nSissionID = nSissionID;
     }
 
-    if(pIoContext->m_Overlapped.InternalHigh > 0)
-    {
-        NETLOG(NET_LOG_LEVEL_INFO, QString("accept socket, receive size:%1 socket:%2")
-               .arg(pIoContext->m_Overlapped.InternalHigh)
-               .arg(pIoContext->m_sockAccept));
-
-        if(pIoContext->m_pobjNetPacketBase == NULL)
-        {
-            pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
-            pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
-            pIoContext->m_pobjNetPacketBase->m_nSissionID = pNewSocketContext->m_nSissionID;
-        }
-
-        NetPacketManager::appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_wsaBuf.buf, pIoContext->m_Overlapped.InternalHigh);
-        if(pIoContext->m_pobjNetPacketBase->m_bIsReceiveEnd)
-        {
-            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, false))
-            {
-                NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
-                RELEASE(pIoContext);
-                return false;
-            }
-
-            NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
-            RELEASE(pIoContext);
-            return true;
-        }
-    }
-
-    pNewSocketContext->appendReceiveContext(pIoContext);
-    if( false == m_pobjNetSocketIocp->postRecv(pIoContext) )
-    {
-        pNewSocketContext->cancelReceiveContext(pIoContext);
-        doDisConnect(pNewSocketContext, pIoContext);
-
-        return false;
-    }
-
-    return true;
+    return doReceive(pNewSocketContext, pIoContext);
 }
 
 bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)

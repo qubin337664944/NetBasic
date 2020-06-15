@@ -50,7 +50,9 @@ SOURCES += \
     #testssl.cpp \
     main.cpp \
     NetClientInterface.cpp \
-    NetKeepAliveThread.cpp
+    NetKeepAliveThread.cpp \
+    NetSocketIocpSSL.cpp \
+    NetSocketIocpSSLThread.cpp
 
 HEADERS += \
     NetSocketBase.h \
@@ -70,6 +72,8 @@ HEADERS += \
     NetSocketEpollSSL.h \
     NetSocketEpollSSLThread.h \
     NetClientInterface.h \
-    NetKeepAliveThread.h
+    NetKeepAliveThread.h \
+    NetSocketIocpSSL.h \
+    NetSocketIocpSSLThread.h
 
 

@@ -4,6 +4,7 @@
 #include "NetSocketEpoll.h"
 #include "NetPacketManager.h"
 #include "NetSocketEpollSSL.h"
+#include "NetSocketIocpSSL.h"
 #include "NetLog.h"
 
 NetServerInterface::NetServerInterface()
@@ -22,9 +23,11 @@ void NetServerInterface::setAppLogCallBack(const qint32 p_nLogLevel, CallAppLog 
     NetLog::g_fnAppLogCallBack = p_fnApplog;
 }
 
-void NetServerInterface::setSslKetCertPath(const QString &p_strKeyPath, const QString &p_strCertPath)
+void NetServerInterface::setSslKeyCertPath(const QString &p_strKeyPath, const QString &p_strCertPath)
 {
 #ifdef WIN32
+    NetSocketIocpSSL::g_strKeyPath = p_strKeyPath;
+    NetSocketIocpSSL::g_strCertPath = p_strCertPath;
 #else
     NetSocketEpollSSL::g_strKeyPath = p_strKeyPath;
     NetSocketEpollSSL::g_strCertPath = p_strCertPath;
@@ -35,7 +38,7 @@ bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNu
 {
     NetPacketManager::init(p_nProtocol, p_fnAppReceivePacket, p_pMaster);
 
-    if(!objNetKeepAliveThread.init(KEEPALIVE_MAXSIZE))
+    if(!objNetKeepAliveThread.init(KEEPALIVE_MAXSIZE, p_nProtocol))
     {
         return false;
     }
@@ -49,6 +52,11 @@ bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNu
     if(p_nProtocol == NET_PROTOCOL_HTTP)
     {
         m_pobjSocketBase = new NetSocketIocp;
+        return m_pobjSocketBase->init(p_nThreadNum);
+    }
+    else if(p_nProtocol == NET_PROTOCOL_HTTPS)
+    {
+        m_pobjSocketBase = new NetSocketIocpSSL;
         return m_pobjSocketBase->init(p_nThreadNum);
     }
 #else

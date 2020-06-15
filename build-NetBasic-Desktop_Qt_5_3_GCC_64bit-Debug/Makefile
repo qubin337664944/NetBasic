@@ -61,7 +61,9 @@ SOURCES       = ../NetBasic/NetSocketBase.cpp \
 		../NetBasic/NetSocketEpollSSLThread.cpp \
 		../NetBasic/main.cpp \
 		../NetBasic/NetClientInterface.cpp \
-		../NetBasic/NetKeepAliveThread.cpp 
+		../NetBasic/NetKeepAliveThread.cpp \
+		../NetBasic/NetSocketIocpSSL.cpp \
+		../NetBasic/NetSocketIocpSSLThread.cpp 
 OBJECTS       = NetSocketBase.o \
 		NetSocketIocp.o \
 		NetSocketEpoll.o \
@@ -78,7 +80,9 @@ OBJECTS       = NetSocketBase.o \
 		NetSocketEpollSSLThread.o \
 		main.o \
 		NetClientInterface.o \
-		NetKeepAliveThread.o
+		NetKeepAliveThread.o \
+		NetSocketIocpSSL.o \
+		NetSocketIocpSSLThread.o
 DIST          = /opt/Qt5.3.1/5.3/gcc_64/mkspecs/features/spec_pre.prf \
 		/opt/Qt5.3.1/5.3/gcc_64/mkspecs/common/shell-unix.conf \
 		/opt/Qt5.3.1/5.3/gcc_64/mkspecs/common/unix.conf \
@@ -200,7 +204,9 @@ DIST          = /opt/Qt5.3.1/5.3/gcc_64/mkspecs/features/spec_pre.prf \
 		../NetBasic/NetSocketEpollSSLThread.cpp \
 		../NetBasic/main.cpp \
 		../NetBasic/NetClientInterface.cpp \
-		../NetBasic/NetKeepAliveThread.cpp
+		../NetBasic/NetKeepAliveThread.cpp \
+		../NetBasic/NetSocketIocpSSL.cpp \
+		../NetBasic/NetSocketIocpSSLThread.cpp
 QMAKE_TARGET  = NetBasic
 DESTDIR       = #avoid trailing-slash linebreak
 TARGET        = NetBasic
@@ -457,7 +463,7 @@ qmake_all: FORCE
 
 dist: 
 	@test -d .tmp/NetBasic1.0.0 || mkdir -p .tmp/NetBasic1.0.0
-	$(COPY_FILE) --parents $(DIST) .tmp/NetBasic1.0.0/ && $(COPY_FILE) --parents ../NetBasic/NetSocketBase.h ../NetBasic/NetSocketIocp.h ../NetBasic/NetSocketEpoll.h ../NetBasic/NetProtocolParseBase.h ../NetBasic/NetProcotolParseHttp.h ../NetBasic/NetPacketBase.h ../NetBasic/NetPacketHttp.h ../NetBasic/NetServerInterface.h ../NetBasic/NetInclude.h ../NetBasic/NetLog.h ../NetBasic/NetPacketManager.h ../NetBasic/NetEnum.h ../NetBasic/NetSocketIocpThread.h ../NetBasic/NetSocketEpollThread.h ../NetBasic/NetSocketEpollSSL.h ../NetBasic/NetSocketEpollSSLThread.h ../NetBasic/NetClientInterface.h ../NetBasic/NetKeepAliveThread.h .tmp/NetBasic1.0.0/ && $(COPY_FILE) --parents ../NetBasic/NetSocketBase.cpp ../NetBasic/NetSocketIocp.cpp ../NetBasic/NetSocketEpoll.cpp ../NetBasic/NetProtocolParseBase.cpp ../NetBasic/NetProcotolParseHttp.cpp ../NetBasic/NetPacketBase.cpp ../NetBasic/NetPacketHttp.cpp ../NetBasic/NetServerInterface.cpp ../NetBasic/NetLog.cpp ../NetBasic/NetPacketManager.cpp ../NetBasic/NetSocketIocpThread.cpp ../NetBasic/NetSocketEpollThread.cpp ../NetBasic/NetSocketEpollSSL.cpp ../NetBasic/NetSocketEpollSSLThread.cpp ../NetBasic/main.cpp ../NetBasic/NetClientInterface.cpp ../NetBasic/NetKeepAliveThread.cpp .tmp/NetBasic1.0.0/ && (cd `dirname .tmp/NetBasic1.0.0` && $(TAR) NetBasic1.0.0.tar NetBasic1.0.0 && $(COMPRESS) NetBasic1.0.0.tar) && $(MOVE) `dirname .tmp/NetBasic1.0.0`/NetBasic1.0.0.tar.gz . && $(DEL_FILE) -r .tmp/NetBasic1.0.0
+	$(COPY_FILE) --parents $(DIST) .tmp/NetBasic1.0.0/ && $(COPY_FILE) --parents ../NetBasic/NetSocketBase.h ../NetBasic/NetSocketIocp.h ../NetBasic/NetSocketEpoll.h ../NetBasic/NetProtocolParseBase.h ../NetBasic/NetProcotolParseHttp.h ../NetBasic/NetPacketBase.h ../NetBasic/NetPacketHttp.h ../NetBasic/NetServerInterface.h ../NetBasic/NetInclude.h ../NetBasic/NetLog.h ../NetBasic/NetPacketManager.h ../NetBasic/NetEnum.h ../NetBasic/NetSocketIocpThread.h ../NetBasic/NetSocketEpollThread.h ../NetBasic/NetSocketEpollSSL.h ../NetBasic/NetSocketEpollSSLThread.h ../NetBasic/NetClientInterface.h ../NetBasic/NetKeepAliveThread.h ../NetBasic/NetSocketIocpSSL.h ../NetBasic/NetSocketIocpSSLThread.h .tmp/NetBasic1.0.0/ && $(COPY_FILE) --parents ../NetBasic/NetSocketBase.cpp ../NetBasic/NetSocketIocp.cpp ../NetBasic/NetSocketEpoll.cpp ../NetBasic/NetProtocolParseBase.cpp ../NetBasic/NetProcotolParseHttp.cpp ../NetBasic/NetPacketBase.cpp ../NetBasic/NetPacketHttp.cpp ../NetBasic/NetServerInterface.cpp ../NetBasic/NetLog.cpp ../NetBasic/NetPacketManager.cpp ../NetBasic/NetSocketIocpThread.cpp ../NetBasic/NetSocketEpollThread.cpp ../NetBasic/NetSocketEpollSSL.cpp ../NetBasic/NetSocketEpollSSLThread.cpp ../NetBasic/main.cpp ../NetBasic/NetClientInterface.cpp ../NetBasic/NetKeepAliveThread.cpp ../NetBasic/NetSocketIocpSSL.cpp ../NetBasic/NetSocketIocpSSLThread.cpp .tmp/NetBasic1.0.0/ && (cd `dirname .tmp/NetBasic1.0.0` && $(TAR) NetBasic1.0.0.tar NetBasic1.0.0 && $(COMPRESS) NetBasic1.0.0.tar) && $(MOVE) `dirname .tmp/NetBasic1.0.0`/NetBasic1.0.0.tar.gz . && $(DEL_FILE) -r .tmp/NetBasic1.0.0
 
 
 clean:compiler_clean 
@@ -615,9 +621,7 @@ NetSocketIocp.o: ../NetBasic/NetSocketIocp.cpp ../NetBasic/NetSocketIocp.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
-		../NetBasic/NetSocketBase.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
-		../NetBasic/NetPacketManager.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpair.h \
@@ -634,9 +638,11 @@ NetSocketIocp.o: ../NetBasic/NetSocketIocp.cpp ../NetBasic/NetSocketIocp.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qshareddata.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
-		../NetBasic/NetProtocolParseBase.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
+		../NetBasic/NetPacketManager.h \
+		../NetBasic/NetProtocolParseBase.h \
 		../NetBasic/NetLog.h \
 		../NetBasic/NetKeepAliveThread.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
@@ -733,7 +739,8 @@ NetSocketEpoll.o: ../NetBasic/NetSocketEpoll.cpp ../NetBasic/NetSocketEpoll.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o NetSocketEpoll.o ../NetBasic/NetSocketEpoll.cpp
 
 NetProtocolParseBase.o: ../NetBasic/NetProtocolParseBase.cpp ../NetBasic/NetProtocolParseBase.h \
@@ -1045,8 +1052,6 @@ NetServerInterface.o: ../NetBasic/NetServerInterface.cpp ../NetBasic/NetServerIn
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
-		../NetBasic/NetSocketEpoll.h \
-		../NetBasic/NetSocketEpollThread.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdebug.h \
@@ -1060,10 +1065,15 @@ NetServerInterface.o: ../NetBasic/NetServerInterface.cpp ../NetBasic/NetServerIn
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringmatcher.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketEpoll.h \
+		../NetBasic/NetSocketEpollThread.h \
 		../NetBasic/NetPacketManager.h \
 		../NetBasic/NetProtocolParseBase.h \
 		../NetBasic/NetSocketEpollSSL.h \
 		../NetBasic/NetSocketEpollSSLThread.h \
+		../NetBasic/NetSocketIocpSSL.h \
+		../NetBasic/NetSocketIocpSSLThread.h \
 		../NetBasic/NetLog.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o NetServerInterface.o ../NetBasic/NetServerInterface.cpp
 
@@ -1293,9 +1303,7 @@ NetSocketIocpThread.o: ../NetBasic/NetSocketIocpThread.cpp ../NetBasic/NetSocket
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
-		../NetBasic/NetSocketBase.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
-		../NetBasic/NetPacketManager.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpair.h \
@@ -1312,9 +1320,11 @@ NetSocketIocpThread.o: ../NetBasic/NetSocketIocpThread.cpp ../NetBasic/NetSocket
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qshareddata.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
-		../NetBasic/NetProtocolParseBase.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
+		../NetBasic/NetPacketManager.h \
+		../NetBasic/NetProtocolParseBase.h \
 		../NetBasic/NetLog.h \
 		../NetBasic/NetKeepAliveThread.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
@@ -1499,6 +1509,11 @@ NetSocketEpollSSL.o: ../NetBasic/NetSocketEpollSSL.cpp ../NetBasic/NetSocketEpol
 		../NetBasic/NetProtocolParseBase.h \
 		../NetBasic/NetLog.h \
 		../NetBasic/NetEnum.h \
+		../NetBasic/NetKeepAliveThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
 		../NetBasic/ssl/include/Linux64/openssl/bio.h \
 		../NetBasic/ssl/include/Linux64/openssl/e_os2.h \
 		../NetBasic/ssl/include/Linux64/openssl/opensslconf.h \
@@ -1636,6 +1651,11 @@ NetSocketEpollSSLThread.o: ../NetBasic/NetSocketEpollSSLThread.cpp ../NetBasic/N
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
 		../NetBasic/NetLog.h \
 		../NetBasic/NetEnum.h \
+		../NetBasic/NetKeepAliveThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
 		../NetBasic/ssl/include/Linux64/openssl/bio.h \
 		../NetBasic/ssl/include/Linux64/openssl/e_os2.h \
 		../NetBasic/ssl/include/Linux64/openssl/opensslconf.h \
@@ -1752,9 +1772,7 @@ main.o: ../NetBasic/main.cpp /opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QCoreApplica
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
-		../NetBasic/NetSocketBase.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
-		../NetBasic/NetPacketHttp.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpair.h \
@@ -1771,14 +1789,19 @@ main.o: ../NetBasic/main.cpp /opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QCoreApplica
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qshareddata.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
+		../NetBasic/NetPacketHttp.h \
 		../NetBasic/NetServerInterface.h \
 		../NetBasic/NetKeepAliveThread.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
-		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QFile \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qfile.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qfiledevice.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o ../NetBasic/main.cpp
 
 NetClientInterface.o: ../NetBasic/NetClientInterface.cpp ../NetBasic/NetClientInterface.h \
@@ -1986,10 +2009,366 @@ NetKeepAliveThread.o: ../NetBasic/NetKeepAliveThread.cpp ../NetBasic/NetKeepAliv
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdebug.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtextstream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qiodevice.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlocale.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvariant.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringlist.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatastream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qregexp.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringmatcher.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
 		../NetBasic/NetSocketBase.h \
 		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
-		../NetBasic/NetLog.h
+		../NetBasic/NetSocketIocpSSL.h \
+		../NetBasic/NetSocketIocpSSLThread.h \
+		../NetBasic/NetSocketEpollSSL.h \
+		../NetBasic/NetSocketEpollSSLThread.h \
+		../NetBasic/NetLog.h \
+		../NetBasic/ssl/include/Linux64/openssl/bio.h \
+		../NetBasic/ssl/include/Linux64/openssl/e_os2.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslconf.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslv.h \
+		../NetBasic/ssl/include/Linux64/openssl/crypto.h \
+		../NetBasic/ssl/include/Linux64/openssl/safestack.h \
+		../NetBasic/ssl/include/Linux64/openssl/stack.h \
+		../NetBasic/ssl/include/Linux64/openssl/ossl_typ.h \
+		../NetBasic/ssl/include/Linux64/openssl/cryptoerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ebcdic.h \
+		../NetBasic/ssl/include/Linux64/openssl/symhacks.h \
+		../NetBasic/ssl/include/Linux64/openssl/bioerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ssl.h \
+		../NetBasic/ssl/include/Linux64/openssl/comp.h \
+		../NetBasic/ssl/include/Linux64/openssl/comperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffer.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffererr.h \
+		../NetBasic/ssl/include/Linux64/openssl/evp.h \
+		../NetBasic/ssl/include/Linux64/openssl/evperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objects.h \
+		../NetBasic/ssl/include/Linux64/openssl/obj_mac.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1err.h \
+		../NetBasic/ssl/include/Linux64/openssl/bn.h \
+		../NetBasic/ssl/include/Linux64/openssl/bnerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objectserr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ec.h \
+		../NetBasic/ssl/include/Linux64/openssl/ecerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/dh.h \
+		../NetBasic/ssl/include/Linux64/openssl/dherr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sha.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509err.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509_vfy.h \
+		../NetBasic/ssl/include/Linux64/openssl/lhash.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7err.h \
+		../NetBasic/ssl/include/Linux64/openssl/pem.h \
+		../NetBasic/ssl/include/Linux64/openssl/pemerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/hmac.h \
+		../NetBasic/ssl/include/Linux64/openssl/async.h \
+		../NetBasic/ssl/include/Linux64/openssl/asyncerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ct.h \
+		../NetBasic/ssl/include/Linux64/openssl/cterr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sslerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/err.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o NetKeepAliveThread.o ../NetBasic/NetKeepAliveThread.cpp
+
+NetSocketIocpSSL.o: ../NetBasic/NetSocketIocpSSL.cpp ../NetBasic/NetSocketIocpSSL.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QCoreApplication \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcoreapplication.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qglobal.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qconfig.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qfeatures.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsystemdetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qprocessordetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcompilerdetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtypeinfo.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtypetraits.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsysinfo.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlogging.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qflags.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qbasicatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_bootstrap.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qgenericatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_msvc.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv7.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv6.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv5.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_ia64.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_mips.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_x86.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_cxx11.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_gcc.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_unix.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qglobalstatic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmutex.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qnumeric.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstring.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qchar.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qbytearray.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qrefcount.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qnamespace.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qarraydata.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringbuilder.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobject.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobjectdefs.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobjectdefs_impl.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlist.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qalgorithms.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qiterator.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcoreevent.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qscopedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmetatype.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvarlengtharray.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontainerfwd.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qisenum.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobject_impl.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qeventloop.h \
+		../NetBasic/NetEnum.h \
+		../NetBasic/NetInclude.h \
+		../NetBasic/NetPacketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QByteArray \
+		../NetBasic/NetSocketIocpSSLThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QThread \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qthread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QQueue \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qqueue.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpair.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdebug.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qhash.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtextstream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qiodevice.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlocale.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvariant.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringlist.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatastream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qregexp.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringmatcher.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qshareddata.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
+		../NetBasic/NetPacketManager.h \
+		../NetBasic/NetProtocolParseBase.h \
+		../NetBasic/NetLog.h \
+		../NetBasic/NetKeepAliveThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
+		../NetBasic/ssl/include/Linux64/openssl/bio.h \
+		../NetBasic/ssl/include/Linux64/openssl/e_os2.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslconf.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslv.h \
+		../NetBasic/ssl/include/Linux64/openssl/crypto.h \
+		../NetBasic/ssl/include/Linux64/openssl/safestack.h \
+		../NetBasic/ssl/include/Linux64/openssl/stack.h \
+		../NetBasic/ssl/include/Linux64/openssl/ossl_typ.h \
+		../NetBasic/ssl/include/Linux64/openssl/cryptoerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ebcdic.h \
+		../NetBasic/ssl/include/Linux64/openssl/symhacks.h \
+		../NetBasic/ssl/include/Linux64/openssl/bioerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ssl.h \
+		../NetBasic/ssl/include/Linux64/openssl/comp.h \
+		../NetBasic/ssl/include/Linux64/openssl/comperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffer.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffererr.h \
+		../NetBasic/ssl/include/Linux64/openssl/evp.h \
+		../NetBasic/ssl/include/Linux64/openssl/evperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objects.h \
+		../NetBasic/ssl/include/Linux64/openssl/obj_mac.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1err.h \
+		../NetBasic/ssl/include/Linux64/openssl/bn.h \
+		../NetBasic/ssl/include/Linux64/openssl/bnerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objectserr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ec.h \
+		../NetBasic/ssl/include/Linux64/openssl/ecerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/dh.h \
+		../NetBasic/ssl/include/Linux64/openssl/dherr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sha.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509err.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509_vfy.h \
+		../NetBasic/ssl/include/Linux64/openssl/lhash.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7err.h \
+		../NetBasic/ssl/include/Linux64/openssl/pem.h \
+		../NetBasic/ssl/include/Linux64/openssl/pemerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/hmac.h \
+		../NetBasic/ssl/include/Linux64/openssl/async.h \
+		../NetBasic/ssl/include/Linux64/openssl/asyncerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ct.h \
+		../NetBasic/ssl/include/Linux64/openssl/cterr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sslerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/err.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o NetSocketIocpSSL.o ../NetBasic/NetSocketIocpSSL.cpp
+
+NetSocketIocpSSLThread.o: ../NetBasic/NetSocketIocpSSLThread.cpp ../NetBasic/NetSocketIocpSSLThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QThread \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qthread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobject.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobjectdefs.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qnamespace.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qglobal.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qconfig.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qfeatures.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsystemdetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qprocessordetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcompilerdetection.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtypeinfo.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtypetraits.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsysinfo.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlogging.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qflags.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qbasicatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_bootstrap.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qgenericatomic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_msvc.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv7.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv6.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_armv5.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_ia64.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_mips.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_x86.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_cxx11.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_gcc.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qatomic_unix.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qglobalstatic.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmutex.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qnumeric.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobjectdefs_impl.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstring.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qchar.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qbytearray.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qrefcount.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qarraydata.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringbuilder.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlist.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qalgorithms.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qiterator.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcoreevent.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qscopedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmetatype.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvarlengtharray.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontainerfwd.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qisenum.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qobject_impl.h \
+		../NetBasic/NetSocketIocpSSL.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QCoreApplication \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcoreapplication.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qeventloop.h \
+		../NetBasic/NetEnum.h \
+		../NetBasic/NetInclude.h \
+		../NetBasic/NetPacketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QByteArray \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QQueue \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qqueue.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QVector \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvector.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpoint.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMutex \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QMap \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qmap.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qpair.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdebug.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qhash.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qtextstream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qiodevice.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qlocale.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qvariant.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringlist.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatastream.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qregexp.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qstringmatcher.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qshareddata.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qset.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qcontiguouscache.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDebug \
+		../NetBasic/NetSocketBase.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QString \
+		../NetBasic/NetPacketManager.h \
+		../NetBasic/NetProtocolParseBase.h \
+		../NetBasic/NetLog.h \
+		../NetBasic/NetKeepAliveThread.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/QDateTime \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qdatetime.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer.h \
+		/opt/Qt5.3.1/5.3/gcc_64/include/QtCore/qsharedpointer_impl.h \
+		../NetBasic/ssl/include/Linux64/openssl/bio.h \
+		../NetBasic/ssl/include/Linux64/openssl/e_os2.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslconf.h \
+		../NetBasic/ssl/include/Linux64/openssl/opensslv.h \
+		../NetBasic/ssl/include/Linux64/openssl/crypto.h \
+		../NetBasic/ssl/include/Linux64/openssl/safestack.h \
+		../NetBasic/ssl/include/Linux64/openssl/stack.h \
+		../NetBasic/ssl/include/Linux64/openssl/ossl_typ.h \
+		../NetBasic/ssl/include/Linux64/openssl/cryptoerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ebcdic.h \
+		../NetBasic/ssl/include/Linux64/openssl/symhacks.h \
+		../NetBasic/ssl/include/Linux64/openssl/bioerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ssl.h \
+		../NetBasic/ssl/include/Linux64/openssl/comp.h \
+		../NetBasic/ssl/include/Linux64/openssl/comperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffer.h \
+		../NetBasic/ssl/include/Linux64/openssl/buffererr.h \
+		../NetBasic/ssl/include/Linux64/openssl/evp.h \
+		../NetBasic/ssl/include/Linux64/openssl/evperr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objects.h \
+		../NetBasic/ssl/include/Linux64/openssl/obj_mac.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1.h \
+		../NetBasic/ssl/include/Linux64/openssl/asn1err.h \
+		../NetBasic/ssl/include/Linux64/openssl/bn.h \
+		../NetBasic/ssl/include/Linux64/openssl/bnerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/objectserr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ec.h \
+		../NetBasic/ssl/include/Linux64/openssl/ecerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/rsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsa.h \
+		../NetBasic/ssl/include/Linux64/openssl/dh.h \
+		../NetBasic/ssl/include/Linux64/openssl/dherr.h \
+		../NetBasic/ssl/include/Linux64/openssl/dsaerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sha.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509err.h \
+		../NetBasic/ssl/include/Linux64/openssl/x509_vfy.h \
+		../NetBasic/ssl/include/Linux64/openssl/lhash.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7.h \
+		../NetBasic/ssl/include/Linux64/openssl/pkcs7err.h \
+		../NetBasic/ssl/include/Linux64/openssl/pem.h \
+		../NetBasic/ssl/include/Linux64/openssl/pemerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/hmac.h \
+		../NetBasic/ssl/include/Linux64/openssl/async.h \
+		../NetBasic/ssl/include/Linux64/openssl/asyncerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/ct.h \
+		../NetBasic/ssl/include/Linux64/openssl/cterr.h \
+		../NetBasic/ssl/include/Linux64/openssl/sslerr.h \
+		../NetBasic/ssl/include/Linux64/openssl/err.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o NetSocketIocpSSLThread.o ../NetBasic/NetSocketIocpSSLThread.cpp
 
 ####### Install
 

@@ -133,11 +133,36 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
         pobjPacket->bTcpConnected = true;
         pobjPacket->bSslConnected = false;
 
+        if (pobjPacket->pobjSsl == NULL)
+        {
+            pobjPacket->pobjSsl = (void*)SSL_new ((SSL_CTX*)m_pobjsslCtx);
+            if(pobjPacket->pobjSsl == NULL)
+            {
+                NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_new = NULL,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
+                delete pobjPacket;
+                close(connfd);
+                continue;
+            }
+
+            int r = SSL_set_fd((SSL*)pobjPacket->pobjSsl, pobjPacket->nFd);
+            if(!r)
+            {
+                NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_set_fd = 0,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
+                delete pobjPacket;
+                close(connfd);
+                continue;
+            }
+
+            SSL_set_accept_state((SSL*)pobjPacket->pobjSsl);
+        }
+
         NetKeepAliveInfo objNetKeepAliveInfo;
         objNetKeepAliveInfo.nSocket = connfd;
         objNetKeepAliveInfo.bCheckReceiveTime = true;
         objNetKeepAliveInfo.bCheckSendTime = false;
         objNetKeepAliveInfo.nReceiveTimeOutS = RECEIVE_PACKET_TIMEOUT_S;
+        objNetKeepAliveInfo.pobjExtend = (void*)pobjPacket->pobjSsl;
+
         quint32 nSissionID = 0;
         if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo, nSissionID))
         {
@@ -345,25 +370,6 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
 
 bool NetSocketEpollSSLThread::doSSLHandshake(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPacket)
 {
-    if (p_pobjEpollPacket->pobjSsl == NULL)
-    {
-        p_pobjEpollPacket->pobjSsl = (void*)SSL_new ((SSL_CTX*)m_pobjsslCtx);
-        if(p_pobjEpollPacket->pobjSsl == NULL)
-        {
-            NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_new = NULL,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
-            return false;
-        }
-
-        int r = SSL_set_fd((SSL*)p_pobjEpollPacket->pobjSsl, p_pobjEpollPacket->nFd);
-        if(!r)
-        {
-            NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_set_fd = 0,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
-            return false;
-        }
-
-        SSL_set_accept_state((SSL*)p_pobjEpollPacket->pobjSsl);
-    }
-
     int nRet = SSL_do_handshake((SSL*)p_pobjEpollPacket->pobjSsl);
     if (nRet == 1)
     {

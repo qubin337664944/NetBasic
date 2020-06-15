@@ -17,7 +17,7 @@ public:
 
     static void setAppLogCallBack(const qint32 p_nLogLevel, CallAppLog p_fnApplog);
 
-    static void setSslKetCertPath(const QString& p_strKeyPath, const QString& p_strCertPath);
+    static void setSslKeyCertPath(const QString& p_strKeyPath, const QString& p_strCertPath);
 
     bool init(const qint32 p_nProtocol, const qint32 p_nThreadNum, CallAppReceivePacket p_fnAppReceivePacket, void* p_pMaster);
 
