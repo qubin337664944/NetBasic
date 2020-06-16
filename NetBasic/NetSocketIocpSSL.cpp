@@ -266,6 +266,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
 
         if(nSendLen <= 0)
         {
+            NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_write failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
             return false;
         }
     }
@@ -276,12 +277,14 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     if(!NetKeepAliveThread::getExtend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjExtend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        RELEASE(pobjIoContext);
         return false;
     }
 
     if(pobjExtend == NULL)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,pobjSocketContext = null,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        RELEASE(pobjIoContext);
         return false;
     }
 
@@ -328,8 +331,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     bool bRet = postSend(pobjIoContext);
     if(!bRet)
     {
-        delete pobjIoContext;
-        pobjIoContext = NULL;
+        RELEASE(pobjIoContext);
     }
 
     return bRet;
