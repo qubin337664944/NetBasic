@@ -222,12 +222,24 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
         return false;
     }
 
+    quint32 nIndex = pobjEpollSendPacket->nIndex;
+    void* pobjContext = NULL;
+    if(!NetKeepAliveThread::lockIndexContext(pobjEpollSendPacket->nIndex, pobjEpollSendPacket->nFd, pobjEpollSendPacket->nSissionID, pobjContext))
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
+        delete pobjEpollSendPacket;
+        return false;
+    }
+
     if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, SEND_PACKET_TIMEOUT_S))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
+        NetKeepAliveThread::unlockIndex(nIndex);
         return false;
     }
+
+    NetKeepAliveThread::unlockIndex(nIndex);
 
     struct epoll_event stEvent;
     memset(&stEvent, 0, sizeof(stEvent));

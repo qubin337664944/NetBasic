@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     NetServerInterface objNetServerInterface;
-    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_TRACE,NULL);
+    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
     //NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
     if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 10, HttpCall, &objNetServerInterface))
     {
