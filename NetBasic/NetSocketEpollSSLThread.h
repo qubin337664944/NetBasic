@@ -51,10 +51,10 @@ protected:
 
 public:
     bool doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pobjEpollPacket);
-    bool doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket);
-    bool doSend(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket );
+    bool doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket, bool& p_bIsLock);
+    bool doSend(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket, bool& p_bIsLock);
 
-    bool doSSLHandshake(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket);
+    bool doSSLHandshake(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket, bool& p_bIsLock);
 
     void closeConnect(qint32 p_nFd, EpollSSLPacket* p_pobjEpollPacket);
 

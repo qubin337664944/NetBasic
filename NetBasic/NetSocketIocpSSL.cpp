@@ -10,6 +10,56 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+static pthread_mutex_t *lockarray = NULL;
+
+
+static void lock_callback(int mode, int type, const char *file, int line)
+{
+  if(mode & CRYPTO_LOCK)
+  {
+    pthread_mutex_lock(&(lockarray[type]));
+  }
+  else
+  {
+    pthread_mutex_unlock(&(lockarray[type]));
+  }
+}
+
+static unsigned long thread_id(void)
+{
+  unsigned long ret;
+
+  ret=(unsigned long)pthread_self();
+  return ret;
+}
+
+static void init_locks(void)
+{
+  int i;
+
+  lockarray=(pthread_mutex_t *)OPENSSL_malloc(CRYPTO_num_locks() *
+                                            sizeof(pthread_mutex_t));
+  for(i=0; i<CRYPTO_num_locks(); i++)
+  {
+    pthread_mutex_init(&(lockarray[i]), NULL);
+  }
+
+  CRYPTO_set_id_callback((unsigned long (*)())thread_id);
+  CRYPTO_set_locking_callback(lock_callback);
+}
+
+static void kill_locks(void)
+{
+  int i;
+
+  CRYPTO_set_locking_callback(NULL);
+  for(i=0; i<CRYPTO_num_locks(); i++)
+  {
+      pthread_mutex_destroy(&(lockarray[i]));
+  }
+
+  OPENSSL_free(lockarray);
+}
 
 QString NetSocketIocpSSL::g_strKeyPath = "ssl.key";
 QString NetSocketIocpSSL::g_strCertPath = "ssl.crt";
@@ -109,6 +159,7 @@ bool NetSocketIocpSSL::init(const qint32 p_nThreadNum)
 //        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_set_cipher_list failed,error:%1").arg(strerror(errno)));
 //        return false;
 //    }
+    init_locks();
 
     for(int i = 0; i < p_nThreadNum; i++)
     {
@@ -250,6 +301,21 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
         return false;
     }
 
+    void* pobjExtend = NULL;
+    if(!NetKeepAliveThread::getExtend(p_pobjNetPacketBase->m_nIndex, pobjExtend))
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        return false;
+    }
+
+    if(pobjExtend == NULL)
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,pobjSocketContext = null,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        return false;
+    }
+
+    SOCKET_CONTEXT_SSL* pobjSocketContext = (SOCKET_CONTEXT_SSL*)pobjExtend;
+
     int nSendAllLength = 0;
     while(1)
     {
@@ -273,23 +339,6 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
 
     IO_CONTEXT_SSL* pobjIoContext = new IO_CONTEXT_SSL;
 
-    void* pobjExtend = NULL;
-    if(!NetKeepAliveThread::getExtend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjExtend))
-    {
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
-        RELEASE(pobjIoContext);
-        return false;
-    }
-
-    if(pobjExtend == NULL)
-    {
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,pobjSocketContext = null,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
-        RELEASE(pobjIoContext);
-        return false;
-    }
-
-    SOCKET_CONTEXT_SSL* pobjSocketContext = (SOCKET_CONTEXT_SSL*)pobjExtend;
-
     QByteArray bytSSLSend;
     bytSSLSend.reserve(bytSend.length() + 1);
     while(1)
@@ -311,6 +360,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_sockAccept = p_pobjNetPacketBase->m_nSocket;
     pobjIoContext->m_nSissionID = p_pobjNetPacketBase->m_nSissionID;
     pobjIoContext->m_pobjSSL = p_pobjNetPacketBase->m_pobjSSL;
+    pobjIoContext->m_nIndex = p_pobjNetPacketBase->m_nIndex;
 
     if(p_pobjNetPacketBase->m_bKeepAlive)
     {
@@ -413,7 +463,7 @@ bool NetSocketIocpSSL::postSend(IO_CONTEXT_SSL *pIoContext)
 
     pIoContext->ResetBuffer();
 
-    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, true, SEND_PACKET_TIMEOUT_S, pIoContext))
+    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, SEND_PACKET_TIMEOUT_S, pIoContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -422,7 +472,7 @@ bool NetSocketIocpSSL::postSend(IO_CONTEXT_SSL *pIoContext)
     int nBytesSend = WSASend(pIoContext->m_sockAccept, p_wbuf, 1, &dwBytes, dwFlags, p_ol, NULL );
     if ((SOCKET_ERROR == nBytesSend) && (WSA_IO_PENDING != WSAGetLastError()))
     {
-        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, false, SEND_PACKET_TIMEOUT_S, pIoContext))
+        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, SEND_PACKET_TIMEOUT_S, pIoContext))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         }

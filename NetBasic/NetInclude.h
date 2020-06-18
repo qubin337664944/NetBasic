@@ -15,7 +15,7 @@ typedef void (*CallAppReceivePacket)(NetPacketBase* p_pobjPacket, void* p_pMaste
 
 #define EPOLL_SOCKET_MAX_SIZE 32768
 
-#define LISTEN_SIZE 20
+#define LISTEN_SIZE 10
 
 #define KEEPALIVE_DETECT 1
 #define RECEIVE_PACKET_TIMEOUT_S 30

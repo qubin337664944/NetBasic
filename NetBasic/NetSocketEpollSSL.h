@@ -54,6 +54,7 @@ struct EpollSSLPacket
     bool bKeepAlive;
 
     int nSissionID;
+    quint32 nIndex;
 
     NetPacketBase* pobjNetPacketBase;
 
@@ -84,6 +85,7 @@ struct EpollSSLPacket
         bKeepAlive = false;
 
         nSissionID = 0;
+        nIndex = 0;
 
         pobjNetPacketBase = NULL;
     }

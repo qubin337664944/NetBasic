@@ -45,6 +45,7 @@ struct IO_CONTEXT_SSL
     void*          m_pobjSocketContext;
     quint32        m_nSissionID;
     void*          m_pobjSSL;
+    quint32        m_nIndex;
 
     // 初始化
     IO_CONTEXT_SSL()
@@ -63,6 +64,7 @@ struct IO_CONTEXT_SSL
         m_pobjSocketContext = NULL;
         m_nSissionID = 0;
         m_pobjSSL = NULL;
+        m_nIndex = 0;
     }
 
     // 释放掉Socket
@@ -113,6 +115,7 @@ struct SOCKET_CONTEXT_SSL
     bool m_bKeepAliveTimeOut;
 
     quint32 m_nSissionID;
+    quint32 m_nIndex;
 
     void* m_pobjSSL;
     void* m_pobjBioSend;
@@ -124,6 +127,7 @@ struct SOCKET_CONTEXT_SSL
         m_bClosed = false;
         m_bKeepAliveTimeOut = false;
         m_nSissionID = 0;
+        m_nIndex = 0;
 
         m_pobjSSL = NULL;
         m_pobjBioSend = NULL;

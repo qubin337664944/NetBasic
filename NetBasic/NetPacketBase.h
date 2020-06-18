@@ -16,6 +16,7 @@ public:
     bool m_bIsReceiveEnd;
     quint64 m_nSocket;
     quint32 m_nSissionID;
+    quint32 m_nIndex;
 
     qint32 m_nStep;
 

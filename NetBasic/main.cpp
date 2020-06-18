@@ -18,12 +18,13 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_bKeepAlive = true;
     pobjResPacket->m_nSocket = pobjPacketHttp->m_nSocket;
     pobjResPacket->m_nSissionID = pobjPacketHttp->m_nSissionID;
+    pobjResPacket->m_nIndex = pobjPacketHttp->m_nIndex;
 
     pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
 
-    QByteArray bytReturn(9000,'a');
+    QByteArray bytReturn(9,'a');
     pobjResPacket->m_bytData = bytReturn;
 
     pobjNetInterface->send(pobjResPacket);
@@ -36,8 +37,8 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     NetServerInterface objNetServerInterface;
-    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
-    NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
+    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_TRACE,NULL);
+    //NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
     if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 10, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";

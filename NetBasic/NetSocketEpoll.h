@@ -50,6 +50,7 @@ struct EpollPacket
     int nSendIndex;
     int nFd;
     int nSissionID;
+    quint32 nIndex;
 
     bool bKeepAlive;
 
@@ -76,6 +77,7 @@ struct EpollPacket
         bKeepAlive = false;
         pobjNetPacketBase = NULL;
         nSissionID = 0;
+        nIndex = 0;
     }
 };
 

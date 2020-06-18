@@ -11,6 +11,7 @@ NetPacketBase::NetPacketBase()
     m_nSendIndex = 0;
     m_pobjSSL  = NULL;
     m_nSissionID = 0;
+    m_nIndex = 0;
 }
 
 NetPacketBase::~NetPacketBase()

@@ -49,7 +49,7 @@ protected:
 
 public:
     bool doAccept(qint32 p_nListenFd, EpollPacket* p_pobjEpollPacket);
-    bool doReceive(qint32 p_nFd, EpollPacket* p_pobjEpollPacket);
+    bool doReceive(qint32 p_nFd, EpollPacket* p_pobjEpollPacket, bool& p_bIsLock);
     bool doSend(qint32 p_nFd, EpollPacket* p_pobjEpollPacket );
 
     void closeConnect(qint32 p_nFd, EpollPacket *p_pobjEpollPacket);
