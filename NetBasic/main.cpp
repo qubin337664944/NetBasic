@@ -6,9 +6,14 @@
 #include <QDebug>
 #include <QFile>
 
+#include <QMutex>
+static qint64 g_nCount = 0;
+static QMutex g_Mutex;
+
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
+    //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
     qDebug()<< pobjPacketHttp->m_bytData.size();
 
     NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
@@ -24,13 +29,33 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
 
-    QByteArray bytReturn(9,'a');
+    QByteArray bytReturn("aaaaaa");
     pobjResPacket->m_bytData = bytReturn;
+
+    //QThread::sleep(1);
 
     pobjNetInterface->send(pobjResPacket);
 
+    {
+        //g_Mutex.lock();
+        g_nCount++;
+        //g_Mutex.unlock();
+    }
+
     delete pobjResPacket;
 }
+
+class TestCount : public QThread
+{
+    void run()
+    {
+        while(1)
+        {
+            //qDebug() << "g_nCount:"<<g_nCount;
+            sleep(1);
+        }
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -38,8 +63,8 @@ int main(int argc, char *argv[])
 
     NetServerInterface objNetServerInterface;
     NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
-    //NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 10, HttpCall, &objNetServerInterface))
+    NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 30, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
@@ -50,6 +75,9 @@ int main(int argc, char *argv[])
         qDebug()<<"objNetInterface.start error";
         return a.exec();
     }
+
+    TestCount objTestCount;
+    objTestCount.start();
 
     return a.exec();
 }

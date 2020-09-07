@@ -84,7 +84,7 @@ void NetSocketIocpThread::run()
 
         if( !bReturn )
         {
-            NETLOG(NET_LOG_LEVEL_ERROR, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5 error:%6")
+            NETLOG(NET_LOG_LEVEL_WORNING, QString("client disconnect dwErr, ip:%1 port:%2 socket:%3 posttype:%4 iosocket:%5 error:%6")
                    .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
                    .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
                    .arg(pSocketContext->m_Socket)
@@ -155,11 +155,11 @@ void NetSocketIocpThread::run()
                      RELEASE( pNewIoContext );
                 }
 
-                bRet = doAccept(pSocketContext, pIoContext);
+                bRet = doAccept(pSocketContext, pIoContext, bLockIndex);
             }
             else if(pIoContext->m_OpType == NET_POST_RECEIVE)
             {
-                bRet = doReceive(pSocketContext, pIoContext);
+                bRet = doReceive(pSocketContext, pIoContext, bLockIndex);
             }
             else if(pIoContext->m_OpType == NET_POST_SEND)
             {
@@ -179,7 +179,7 @@ void NetSocketIocpThread::run()
     }
 }
 
-bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
+bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext, bool& p_bIsLock)
 {
     SOCKADDR_IN* ClientAddr = NULL;
     SOCKADDR_IN* LocalAddr = NULL;
@@ -216,6 +216,9 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
                .arg(pIoContext->m_sockAccept));
+
+        RELEASE( pNewSocketContext );
+
         return false;
     }
     else
@@ -226,10 +229,26 @@ bool NetSocketIocpThread::doAccept(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *p
         pIoContext->m_nIndex = nIndex;
     }
 
-    return doReceive(pNewSocketContext, pIoContext);
+    if(!p_bIsLock)
+    {
+        void* vpobjConText = NULL;
+        if(!NetKeepAliveThread::lockIndexContext(pIoContext->m_nIndex, objNetKeepAliveInfo.nSocket, pIoContext->m_nSissionID, vpobjConText))
+        {
+            NETLOG(NET_LOG_LEVEL_WORNING, QString("lockIndexContext failed, socket:%1")
+                   .arg(objNetKeepAliveInfo.nSocket));
+
+            RELEASE( pNewSocketContext );
+
+            return false;
+        }
+
+        p_bIsLock = true;
+    }
+
+    return doReceive(pNewSocketContext, pIoContext, p_bIsLock);
 }
 
-bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext)
+bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *pIoContext, bool& p_bIsLock)
 {
     if(pIoContext->m_pobjNetPacketBase == NULL)
     {
@@ -250,12 +269,15 @@ bool NetSocketIocpThread::doReceive(SOCKET_CONTEXT *pSocketContext, IO_CONTEXT *
         {
             NETLOG(NET_LOG_LEVEL_INFO, QString("receive a packet end, socket:%1").arg(pIoContext->m_sockAccept));
 
-            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex))
+            if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false))
             {
                 NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
                 delete pIoContext;
                 return false;
             }
+
+            NetKeepAliveThread::unlockIndex(pIoContext->m_nIndex);
+            p_bIsLock = false;
 
             NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
 

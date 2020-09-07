@@ -142,6 +142,12 @@ bool NetSocketEpoll::start(const QString &p_strBindIP, const qint32 p_nPort)
 
 bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
 {
+    if(p_pobjNetPacketBase == NULL)
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("send Null Pointer"));
+        return false;
+    }
+
     EpollPacket *pobjEpollSendPacket = new EpollPacket;
     pobjEpollSendPacket->nFd = p_pobjNetPacketBase->m_nSocket;
     pobjEpollSendPacket->nSendIndex = 0;

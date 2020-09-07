@@ -29,8 +29,14 @@ void NetKeepAliveThread::run()
     {
         QDateTime objDateTime = QDateTime::currentDateTime();
 
+        qint32 nConnectedSize = 0;
         for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
         {
+            if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
+            {
+                nConnectedSize++;
+            }
+
             if(g_vpobjNetKeepAliveInfo[i].bCheckSendTime && g_vpobjNetKeepAliveInfo[i].bIsAlive)
             {
                if(g_vpobjNetKeepAliveInfo[i].objLastSendTime.secsTo(objDateTime) > g_vpobjNetKeepAliveInfo[i].nSendTimeOutS)
@@ -165,7 +171,8 @@ void NetKeepAliveThread::run()
             }
         }
 
-        QThread::msleep(100);
+        //qDebug()<<"Current Connected:"<<nConnectedSize;
+        QThread::msleep(1000);
     }
 }
 
@@ -204,7 +211,11 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo,
     {
         if(!g_vpobjNetKeepAliveInfo[i].bIsAlive)
         {
-            NetKeepAliveThread::lockIndex(i);
+            if(!NetKeepAliveThread::tryLock(i,5))
+            {
+                continue;
+            }
+
             if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
             {
                 NetKeepAliveThread::unlockIndex(i);
@@ -385,6 +396,16 @@ bool NetKeepAliveThread::lockIndex(const quint32 p_nIndex)
 
     g_vpobjNetKeepAliveInfo[p_nIndex].objExtendMutex.lock();
     return true;
+}
+
+bool NetKeepAliveThread::tryLock(const quint32 p_nIndex, const qint32 p_nTryTimeOutMs)
+{
+    if(g_nNetKeepAliveInfoSize < p_nIndex - 1 && p_nIndex != 0)
+    {
+        return false;
+    }
+
+    return g_vpobjNetKeepAliveInfo[p_nIndex].objExtendMutex.tryLock(p_nTryTimeOutMs);
 }
 
 bool NetKeepAliveThread::unlockIndex(const quint32 p_nIndex)

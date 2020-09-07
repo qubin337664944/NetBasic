@@ -176,11 +176,25 @@ bool NetSocketIocp::start(const QString &p_strBindIP, const qint32 p_nPort)
 
 bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
 {
+    if(p_pobjNetPacketBase == NULL)
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("send Null Pointer"));
+        return false;
+    }
+
+    void* pobjContext = NULL;
+    if(!NetKeepAliveThread::lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
+        return false;
+    }
+
     QByteArray bytSend;
 
     if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, bytSend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed"));
+        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
@@ -213,6 +227,8 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
         delete pobjIoContext;
         pobjIoContext = NULL;
     }
+
+    NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
 
     return bRet;
 }

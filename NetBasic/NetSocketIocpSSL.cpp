@@ -293,11 +293,25 @@ bool NetSocketIocpSSL::start(const QString &p_strBindIP, const qint32 p_nPort)
 
 bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
 {
+    if(p_pobjNetPacketBase == NULL)
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("send Null Pointer"));
+        return false;
+    }
+
+    void* pobjContext = NULL;
+    if(!NetKeepAliveThread::lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
+    {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
+        return false;
+    }
+
     QByteArray bytSend;
 
     if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, bytSend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed"));
+        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
@@ -305,12 +319,14 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     if(!NetKeepAliveThread::getExtend(p_pobjNetPacketBase->m_nIndex, pobjExtend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
     if(pobjExtend == NULL)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,pobjSocketContext = null,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
@@ -333,6 +349,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
         if(nSendLen <= 0)
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_write failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
+            NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
             return false;
         }
     }
@@ -384,6 +401,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
         RELEASE(pobjIoContext);
     }
 
+    NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
     return bRet;
 }
 

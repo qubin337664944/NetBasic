@@ -20,9 +20,9 @@ protected:
     virtual	void	run();
 
 private:
-    bool doAccept(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
+    bool doAccept(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext, bool& p_bIsLock);
 
-    bool doReceive(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
+    bool doReceive(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext, bool& p_bIsLock);
 
     bool doSend(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext , qint32 p_nSendSuccessSize = 0);
 

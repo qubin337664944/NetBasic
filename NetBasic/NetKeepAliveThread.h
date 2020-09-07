@@ -60,6 +60,7 @@ public:
     static bool setCheckReceive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex, const bool p_bCheck = true, const qint32 p_nReceiveTimeout = 30, void* p_objContxt = NULL);
 
     static bool lockIndex(const quint32 p_nIndex);
+    static bool tryLock(const quint32 p_nIndex, const qint32 p_nTryTimeOutMs = 5000);
     static bool unlockIndex(const quint32 p_nIndex);
 
     static bool lockIndexContext(const quint32 p_nIndex, const quint64 p_nSocket, const quint32 p_nSissionID, void* &p_pobjExtend);
