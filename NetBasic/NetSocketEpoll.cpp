@@ -171,7 +171,7 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, SEND_PACKET_TIMEOUT_S))
+    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, p_pobjNetPacketBase->m_nTimeOutS))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;

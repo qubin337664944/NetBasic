@@ -9,6 +9,8 @@ public:
     NetPacketBase();
     virtual ~NetPacketBase();
 
+    void copyConnectInfo(NetPacketBase* p_pobjPacketBase);
+
 public:
     bool m_bKeepAlive;
     qint32 m_nPacketID;
@@ -24,6 +26,7 @@ public:
     qint32 m_nSendIndex;
 
     void* m_pobjSSL;
+    qint32 m_nTimeOutS;
 };
 
 #endif // NETPACKETBASE_H

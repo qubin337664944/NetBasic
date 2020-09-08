@@ -45,6 +45,7 @@ struct IO_CONTEXT
     void*          m_pobjSocketContext;
     quint32        m_nSissionID;
     quint32        m_nIndex;
+    qint32         m_nTimeOutS;
 
     // 初始化
     IO_CONTEXT()
@@ -63,6 +64,7 @@ struct IO_CONTEXT
         m_pobjSocketContext = NULL;
         m_nSissionID = 0;
         m_nIndex = 0;
+        m_nTimeOutS = 30;
     }
 
     // 释放掉Socket

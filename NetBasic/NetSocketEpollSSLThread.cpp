@@ -305,7 +305,7 @@ bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpol
 
          if(nLen == 0)
          {
-             NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_read len = 0,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
+             NETLOG(NET_LOG_LEVEL_WORNING, QString("thread:%1,socket:%2,SSL_read len = 0,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
              return false;
          }
     }
@@ -398,7 +398,7 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
 
              if(nLen == 0)
              {
-                 NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,SSL_write = 0,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
+                 NETLOG(NET_LOG_LEVEL_WORNING, QString("thread:%1,socket:%2,SSL_write = 0,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
                  return false;
              }
         }

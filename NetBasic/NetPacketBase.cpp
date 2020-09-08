@@ -12,6 +12,7 @@ NetPacketBase::NetPacketBase()
     m_pobjSSL  = NULL;
     m_nSissionID = 0;
     m_nIndex = 0;
+    m_nTimeOutS = 30;
 }
 
 NetPacketBase::~NetPacketBase()
@@ -28,5 +29,13 @@ NetPacketBase::~NetPacketBase()
     m_nSendIndex = 0;
 
     m_pobjSSL = NULL;
+}
+
+void NetPacketBase::copyConnectInfo(NetPacketBase *p_pobjPacketBase)
+{
+    p_pobjPacketBase->m_pobjSSL = m_pobjSSL;
+    p_pobjPacketBase->m_nSocket = m_nSocket;
+    p_pobjPacketBase->m_nSissionID = m_nSissionID;
+    p_pobjPacketBase->m_nIndex = m_nIndex;
 }
 

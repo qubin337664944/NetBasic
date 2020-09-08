@@ -14,16 +14,16 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
     //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
-    qDebug()<< pobjPacketHttp->m_bytData.size();
+    //qDebug()<< pobjPacketHttp->m_bytData.size();
 
     NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
 
     NetPacketHttp* pobjResPacket =  new NetPacketHttp;
-    pobjResPacket->m_pobjSSL = pobjPacketHttp->m_pobjSSL;
+
     pobjResPacket->m_bKeepAlive = true;
-    pobjResPacket->m_nSocket = pobjPacketHttp->m_nSocket;
-    pobjResPacket->m_nSissionID = pobjPacketHttp->m_nSissionID;
-    pobjResPacket->m_nIndex = pobjPacketHttp->m_nIndex;
+    pobjResPacket->m_nTimeOutS = 50;
+    pobjPacketHttp->copyConnectInfo(pobjResPacket);
+
 
     pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
@@ -51,7 +51,7 @@ class TestCount : public QThread
     {
         while(1)
         {
-            //qDebug() << "g_nCount:"<<g_nCount;
+            qDebug() << "g_nCount:"<<g_nCount;
             sleep(1);
         }
     }
@@ -64,13 +64,13 @@ int main(int argc, char *argv[])
     NetServerInterface objNetServerInterface;
     NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
     NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 30, HttpCall, &objNetServerInterface))
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 30, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
     }
 
-    if(!objNetServerInterface.start("0.0.0.0", 443))
+    if(!objNetServerInterface.start("0.0.0.0", 80))
     {
         qDebug()<<"objNetInterface.start error";
         return a.exec();

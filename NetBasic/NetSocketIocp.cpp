@@ -205,6 +205,7 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_sockAccept = p_pobjNetPacketBase->m_nSocket;
     pobjIoContext->m_nSissionID = p_pobjNetPacketBase->m_nSissionID;
     pobjIoContext->m_nIndex = p_pobjNetPacketBase->m_nIndex;
+    pobjIoContext->m_nTimeOutS = p_pobjNetPacketBase->m_nTimeOutS;
 
     if(p_pobjNetPacketBase->m_bKeepAlive)
     {
@@ -309,7 +310,7 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
 
     pIoContext->ResetBuffer();
 
-    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, SEND_PACKET_TIMEOUT_S, pIoContext))
+    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, pIoContext->m_nTimeOutS, pIoContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -318,7 +319,7 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
     int nBytesSend = WSASend(pIoContext->m_sockAccept, p_wbuf, 1, &dwBytes, dwFlags, p_ol, NULL );
     if ((SOCKET_ERROR == nBytesSend) && (WSA_IO_PENDING != WSAGetLastError()))
     {
-        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, SEND_PACKET_TIMEOUT_S, pIoContext))
+        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, pIoContext->m_nTimeOutS, pIoContext))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         }

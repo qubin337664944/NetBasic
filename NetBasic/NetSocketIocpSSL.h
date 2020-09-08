@@ -46,6 +46,7 @@ struct IO_CONTEXT_SSL
     quint32        m_nSissionID;
     void*          m_pobjSSL;
     quint32        m_nIndex;
+    qint32         m_nTimeOutS;
 
     // 初始化
     IO_CONTEXT_SSL()
@@ -65,6 +66,7 @@ struct IO_CONTEXT_SSL
         m_nSissionID = 0;
         m_pobjSSL = NULL;
         m_nIndex = 0;
+        m_nTimeOutS = 30;
     }
 
     // 释放掉Socket
