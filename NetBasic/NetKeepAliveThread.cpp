@@ -10,7 +10,7 @@
 #include <openssl/err.h>
 
 NetKeepAliveInfo* NetKeepAliveThread::g_vpobjNetKeepAliveInfo = NULL;
-qint32   NetKeepAliveThread::g_nNetKeepAliveInfoSize = 0;
+quint32   NetKeepAliveThread::g_nNetKeepAliveInfoSize = 0;
 quint32 NetKeepAliveThread::g_nSissionID = 1;
 QMutex NetKeepAliveThread::g_objKeepAliveMutex;
 qint32 NetKeepAliveThread::g_nProtocolType;
@@ -193,7 +193,7 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType)
         return false;
     }
 
-    for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
+    for(quint32 i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
         NetKeepAliveThread::lockIndex(i);
         g_vpobjNetKeepAliveInfo[i].init();
@@ -207,7 +207,7 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo,
 {
     p_nSissionID = 0;
 
-    for(int i = 0; i < g_nNetKeepAliveInfoSize; i++)
+    for(quint32 i = 0; i < g_nNetKeepAliveInfoSize; i++)
     {
         if(!g_vpobjNetKeepAliveInfo[i].bIsAlive)
         {
@@ -385,6 +385,77 @@ bool NetKeepAliveThread::setCheckReceive(const quint64 p_nSocket, const quint32 
     }
 
     return false;
+}
+
+bool NetKeepAliveThread::closeConnect(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex)
+{
+    if(g_nNetKeepAliveInfoSize < p_nIndex - 1 && p_nIndex != 0)
+    {
+        return false;
+    }
+
+    if(g_vpobjNetKeepAliveInfo[p_nIndex].bIsAlive && g_vpobjNetKeepAliveInfo[p_nIndex].nSocket == p_nSocket
+            && g_vpobjNetKeepAliveInfo[p_nIndex].nSissionID == p_nSissionID)
+    {
+        NetKeepAliveThread::lockIndex(p_nIndex);
+        if(!g_vpobjNetKeepAliveInfo[p_nIndex].bIsAlive)
+        {
+            NetKeepAliveThread::unlockIndex(p_nIndex);
+            return true;
+        }
+
+#ifdef WIN32
+        if(g_nProtocolType == NET_PROTOCOL_HTTPS)
+        {
+            SOCKET_CONTEXT_SSL* pobjContext  = (SOCKET_CONTEXT_SSL*)g_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+            if(pobjContext)
+            {
+                if(pobjContext->m_pobjSSL)
+                {
+                    SSL_shutdown ((SSL*)pobjContext->m_pobjSSL);
+                    SSL_free((SSL*)pobjContext->m_pobjSSL);
+                }
+
+                pobjContext->m_bKeepAliveTimeOut = true;
+                pobjContext->closeSocket();
+                if(pobjContext->closeContext())
+                {
+                    RELEASE(pobjContext);
+                }
+            }
+        }
+        else
+        {
+            SOCKET_CONTEXT* pobjContext  = (SOCKET_CONTEXT*)g_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+            if(pobjContext)
+            {
+                pobjContext->m_bKeepAliveTimeOut = true;
+                pobjContext->closeSocket();
+                if(pobjContext->closeContext())
+                {
+                    RELEASE(pobjContext);
+                }
+            }
+        }
+#else
+        close(g_vpobjNetKeepAliveInfo[p_nIndex].nSocket);
+        if(g_nProtocolType == NET_PROTOCOL_HTTPS)
+        {
+            SSL* pobjSSL = (SSL*)g_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+            if(pobjSSL)
+            {
+                SSL_shutdown (pobjSSL);
+                SSL_free(pobjSSL);
+                g_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend = NULL;
+            }
+        }
+#endif
+        g_vpobjNetKeepAliveInfo[p_nIndex].init();
+        NetKeepAliveThread::unlockIndex(p_nIndex);
+        return true;
+    }
+
+    return true;
 }
 
 bool NetKeepAliveThread::lockIndex(const quint32 p_nIndex)

@@ -95,6 +95,16 @@ bool NetServerInterface::send(NetPacketBase *pobjNetPacketBase)
     return m_pobjSocketBase->send(pobjNetPacketBase);
 }
 
+bool NetServerInterface::closeConnect(NetPacketBase *pobjNetPacketBase)
+{
+    if(m_pobjSocketBase == NULL)
+    {
+        return false;
+    }
+
+    return NetKeepAliveThread::closeConnect(pobjNetPacketBase->m_nSocket, pobjNetPacketBase->m_nSissionID, pobjNetPacketBase->m_nIndex);
+}
+
 void NetServerInterface::uninit()
 {
     if(m_pobjSocketBase)

@@ -25,6 +25,8 @@ public:
 
     bool send(NetPacketBase* pobjNetPacketBase);
 
+    bool closeConnect(NetPacketBase* pobjNetPacketBase);
+
     void uninit();
 
 private:
