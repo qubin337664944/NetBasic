@@ -10,6 +10,49 @@
 static qint64 g_nCount = 0;
 static QMutex g_Mutex;
 
+class TestRes : public QThread
+{
+    void run()
+    {
+        sleep(1);
+
+        m_pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
+        m_pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
+        m_pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
+
+        QByteArray bytReturn("aaaaaa");
+        m_pobjResPacket->m_bytData = bytReturn;
+
+        m_pobjNetInterface->send(m_pobjResPacket);
+        delete m_pobjResPacket;
+    }
+
+public:
+    NetServerInterface* m_pobjNetInterface;
+    NetPacketHttp* m_pobjResPacket;
+};
+
+static void HttpCallThread(NetPacketBase* p_pobjPacket, void* p_pMaster)
+{
+    NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
+    //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
+    //qDebug()<< pobjPacketHttp->m_bytData.size();
+
+    NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
+
+    NetPacketHttp* pobjResPacket =  new NetPacketHttp;
+
+    pobjResPacket->m_bKeepAlive = false;
+    pobjResPacket->m_nTimeOutS = 50;
+    pobjPacketHttp->copyConnectInfo(pobjResPacket);
+
+    TestRes* pRes = new TestRes;
+    pRes->m_pobjNetInterface = pobjNetInterface;
+    pRes->m_pobjResPacket = pobjResPacket;
+
+    pRes->start();
+}
+
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
@@ -20,7 +63,7 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 
     NetPacketHttp* pobjResPacket =  new NetPacketHttp;
 
-    pobjResPacket->m_bKeepAlive = true;
+    pobjResPacket->m_bKeepAlive = false;
     pobjResPacket->m_nTimeOutS = 50;
     pobjPacketHttp->copyConnectInfo(pobjResPacket);
 
@@ -32,7 +75,6 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     QByteArray bytReturn("aaaaaa");
     pobjResPacket->m_bytData = bytReturn;
 
-    //QThread::sleep(1);
 
     pobjNetInterface->send(pobjResPacket);
 
@@ -57,6 +99,7 @@ class TestCount : public QThread
     }
 };
 
+//http
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -64,7 +107,7 @@ int main(int argc, char *argv[])
     NetServerInterface objNetServerInterface;
     NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
     NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 30, HttpCall, &objNetServerInterface))
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 4, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
@@ -81,3 +124,29 @@ int main(int argc, char *argv[])
 
     return a.exec();
 }
+
+//https
+//int main(int argc, char *argv[])
+//{
+//    QCoreApplication a(argc, argv);
+
+//    NetServerInterface objNetServerInterface;
+//    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
+//    NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
+//    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 4, HttpCall, &objNetServerInterface))
+//    {
+//        qDebug()<<"objNetInterface.init error";
+//        return a.exec();
+//    }
+
+//    if(!objNetServerInterface.start("0.0.0.0", 443))
+//    {
+//        qDebug()<<"objNetInterface.start error";
+//        return a.exec();
+//    }
+
+//    TestCount objTestCount;
+//    objTestCount.start();
+
+//    return a.exec();
+//}
