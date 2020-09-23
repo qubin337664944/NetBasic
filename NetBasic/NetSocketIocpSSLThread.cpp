@@ -163,7 +163,7 @@ void NetSocketIocpSSLThread::run()
                      RELEASE( pNewIoContext );
                 }
 
-                bRet = doAccept(pSocketContext, pIoContext, bLockIndex);
+                bRet = doAccept(pSocketContext, pIoContext);
             }
             else if(pIoContext->m_OpType == NET_POST_RECEIVE)
             {
@@ -187,7 +187,7 @@ void NetSocketIocpSSLThread::run()
     }
 }
 
-bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTEXT_SSL *pIoContext, bool& p_bIsLock)
+bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTEXT_SSL *pIoContext)
 {
     SOCKADDR_IN* ClientAddr = NULL;
     SOCKADDR_IN* LocalAddr = NULL;
@@ -259,7 +259,9 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
         pIoContext->m_nIndex = nIndex;
     }
 
-    if(!p_bIsLock)
+    bool bIsLock = false;
+
+    if(!bIsLock)
     {
         void* vpobjConText = NULL;
         if(!NetKeepAliveThread::lockIndexContext(pIoContext->m_nIndex, objNetKeepAliveInfo.nSocket, pIoContext->m_nSissionID, vpobjConText))
@@ -274,10 +276,16 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
             return false;
         }
 
-        p_bIsLock = true;
+        bIsLock = true;
     }
 
-    return doReceive(pNewSocketContext, pIoContext, p_bIsLock);
+    bool bRet = doReceive(pNewSocketContext, pIoContext, bIsLock);
+    if(bIsLock)
+    {
+        NetKeepAliveThread::unlockIndex(nIndex);
+    }
+
+    return bRet;
 }
 
 bool NetSocketIocpSSLThread::doReceive(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTEXT_SSL *pIoContext, bool& p_bIsLock)

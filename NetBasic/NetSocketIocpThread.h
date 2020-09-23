@@ -20,7 +20,7 @@ protected:
     virtual	void	run();
 
 private:
-    bool doAccept(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext, bool& p_bIsLock);
+    bool doAccept(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext);
 
     bool doReceive(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext, bool& p_bIsLock);
 
