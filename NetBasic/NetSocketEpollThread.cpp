@@ -149,6 +149,15 @@ bool NetSocketEpollThread::doAccept(qint32 p_nListenFd, EpollPacket* p_pobjEpoll
             continue;
         }
 
+        int mss=200;
+        nRet = setsockopt(connfd, IPPROTO_TCP, TCP_MAXSEG, (char *)&mss, sizeof(mss));
+        if(nRet < 0)
+        {
+            NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,setsockopt tcp mtu,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
+            close(connfd);
+            continue;
+        }
+
         EpollPacket *pobjPacket = new EpollPacket;
         pobjPacket->nFd = connfd;
         pobjPacket->nSendIndex = 0;

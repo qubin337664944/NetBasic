@@ -44,7 +44,11 @@ void NetKeepAliveThread::run()
                     NETLOG(NET_LOG_LEVEL_WORNING, QString("socket:%1, send time out:%2 s").arg(g_vpobjNetKeepAliveInfo[i].nSocket).arg(g_vpobjNetKeepAliveInfo[i].nSendTimeOutS));
                     if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
                     {
-                        NetKeepAliveThread::lockIndex(i);
+                        if(!NetKeepAliveThread::tryLock(i, 5))
+                        {
+                            continue;
+                        }
+
                         if(!g_vpobjNetKeepAliveInfo[i].bIsAlive)
                         {
                             NetKeepAliveThread::unlockIndex(i);
@@ -111,7 +115,11 @@ void NetKeepAliveThread::run()
                     NETLOG(NET_LOG_LEVEL_WORNING, QString("socket:%1, receive time out:%2 s").arg(g_vpobjNetKeepAliveInfo[i].nSocket).arg(g_vpobjNetKeepAliveInfo[i].nReceiveTimeOutS));
                     if(g_vpobjNetKeepAliveInfo[i].bIsAlive)
                     {
-                        NetKeepAliveThread::lockIndex(i);
+                        if(!NetKeepAliveThread::tryLock(i, 5))
+                        {
+                            continue;
+                        }
+
                         if(!g_vpobjNetKeepAliveInfo[i].bIsAlive)
                         {
                             NetKeepAliveThread::unlockIndex(i);

@@ -67,12 +67,11 @@ static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
     pobjResPacket->m_nTimeOutS = 50;
     pobjPacketHttp->copyConnectInfo(pobjResPacket);
 
-
     pobjResPacket->m_mapHttpHead.insert("Server", "nginx");
     pobjResPacket->m_mapHttpHead.insert("Connection", "keep-alive");
     pobjResPacket->m_mapHttpHead.insert("Content-Type", "text/plain");
 
-    QByteArray bytReturn("aaaaaa");
+    QByteArray bytReturn(9, 'a');
     pobjResPacket->m_bytData = bytReturn;
 
 
@@ -107,7 +106,7 @@ int main(int argc, char *argv[])
     NetServerInterface objNetServerInterface;
     NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
     NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 30, HttpCall, &objNetServerInterface))
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 8, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
