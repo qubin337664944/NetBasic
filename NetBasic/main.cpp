@@ -56,14 +56,14 @@ static void HttpCallThread(NetPacketBase* p_pobjPacket, void* p_pMaster)
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
-    //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
+    qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
     //qDebug()<< pobjPacketHttp->m_bytData.size();
 
     NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
 
     NetPacketHttp* pobjResPacket =  new NetPacketHttp;
 
-    pobjResPacket->m_bKeepAlive = false;
+    pobjResPacket->m_bKeepAlive = true;
     pobjResPacket->m_nTimeOutS = 50;
     pobjPacketHttp->copyConnectInfo(pobjResPacket);
 
