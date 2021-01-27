@@ -136,6 +136,15 @@ void NetSocketIocpSSLThread::run()
 
         if(bReturn)
         {
+            if(pIoContext->m_OpType == NET_POST_ACCEPT)
+            {
+                IO_CONTEXT_SSL* pNewIoContext = new IO_CONTEXT_SSL;
+                if(!m_pobjNetSocketIocp->postAccept(pNewIoContext))
+                {
+                     RELEASE( pNewIoContext );
+                }
+            }
+
             if(0 == dwBytesTransfered)
             {
                 NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")
@@ -157,12 +166,6 @@ void NetSocketIocpSSLThread::run()
 
             if(pIoContext->m_OpType == NET_POST_ACCEPT)
             {
-                IO_CONTEXT_SSL* pNewIoContext = new IO_CONTEXT_SSL;
-                if(!m_pobjNetSocketIocp->postAccept(pNewIoContext))
-                {
-                     RELEASE( pNewIoContext );
-                }
-
                 bRet = doAccept(pSocketContext, pIoContext);
             }
             else if(pIoContext->m_OpType == NET_POST_RECEIVE)
