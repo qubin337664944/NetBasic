@@ -56,7 +56,7 @@ static void HttpCallThread(NetPacketBase* p_pobjPacket, void* p_pMaster)
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
-    //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
+    qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
     //qDebug()<< pobjPacketHttp->m_bytData.size();
 
     NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
@@ -104,15 +104,15 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     NetServerInterface objNetServerInterface;
-    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_TRACE,NULL);
+    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
     NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTP, 4, HttpCall, &objNetServerInterface))
+    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 4, HttpCall, &objNetServerInterface))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
     }
 
-    if(!objNetServerInterface.start("0.0.0.0", 80))
+    if(!objNetServerInterface.start("0.0.0.0", 443))
     {
         qDebug()<<"objNetInterface.start error";
         return a.exec();

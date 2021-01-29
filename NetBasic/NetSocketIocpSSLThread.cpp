@@ -81,7 +81,15 @@ void NetSocketIocpSSLThread::run()
             }
         }
 
-        if(pIoContext->m_OpType == NET_POST_RECEIVE)
+        if(pIoContext->m_OpType == NET_POST_ACCEPT)
+        {
+            IO_CONTEXT_SSL* pNewIoContext = new IO_CONTEXT_SSL;
+            if(!m_pobjNetSocketIocp->postAccept(pNewIoContext))
+            {
+                 RELEASE( pNewIoContext );
+            }
+        }
+        else if(pIoContext->m_OpType == NET_POST_RECEIVE)
         {
             pSocketContext->appendReceiveContext(pIoContext);
         }
@@ -107,64 +115,30 @@ void NetSocketIocpSSLThread::run()
 
             if((dLastError == WAIT_TIMEOUT) || (dLastError == ERROR_NETNAME_DELETED))//客户端没有正常退出
             {
-                if(pIoContext->m_OpType == NET_POST_ACCEPT)
-                {
-                    closesocket(pIoContext->m_sockAccept);
-
-                    if(!m_pobjNetSocketIocp->postAccept(pIoContext))
-                    {
-                         RELEASE( pIoContext );
-                    }
-                }
-                else if(pIoContext->m_OpType == NET_POST_RECEIVE)
-                {
-                    doDisConnect(pSocketContext, pIoContext);
-                }
-                else if(pIoContext->m_OpType == NET_POST_SEND)
-                {
-                    doDisConnect(pSocketContext, pIoContext);
-                }
+                doDisConnect(pSocketContext, pIoContext);
             }
-
-            if(bLockIndex)
-            {
-                NetKeepAliveThread::unlockIndex(nIndex);
-            }
-
-            continue;
         }
-
-        if(bReturn)
+        else
         {
-            if(pIoContext->m_OpType == NET_POST_ACCEPT)
-            {
-                IO_CONTEXT_SSL* pNewIoContext = new IO_CONTEXT_SSL;
-                if(!m_pobjNetSocketIocp->postAccept(pNewIoContext))
-                {
-                     RELEASE( pNewIoContext );
-                }
-            }
-
+            bool bRet = false;
             if(0 == dwBytesTransfered)
             {
-                NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")
-                       .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
-                       .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
-                       .arg(pSocketContext->m_Socket)
-                       .arg(pIoContext->m_OpType));
-
-                doDisConnect(pSocketContext, pIoContext);
-
-                if(bLockIndex)
+                if(pIoContext->m_OpType == NET_POST_ACCEPT)
                 {
-                    NetKeepAliveThread::unlockIndex(nIndex);
+                    bRet = doAccept(pSocketContext, pIoContext);
                 }
-                continue;
+                else
+                {
+                    NETLOG(NET_LOG_LEVEL_INFO, QString("client disconnect, ip:%1 port:%2 socket:%3 posttype:%4")
+                           .arg(inet_ntoa(pSocketContext->m_ClientAddr.sin_addr))
+                           .arg(ntohs(pSocketContext->m_ClientAddr.sin_port))
+                           .arg(pSocketContext->m_Socket)
+                           .arg(pIoContext->m_OpType));
+
+                    bRet = false;
+                }
             }
-
-            bool bRet = false;
-
-            if(pIoContext->m_OpType == NET_POST_ACCEPT)
+            else if(pIoContext->m_OpType == NET_POST_ACCEPT)
             {
                 bRet = doAccept(pSocketContext, pIoContext);
             }
@@ -181,11 +155,11 @@ void NetSocketIocpSSLThread::run()
             {
                 doDisConnect(pSocketContext, pIoContext);
             }
+        }
 
-            if(bLockIndex)
-            {
-                NetKeepAliveThread::unlockIndex(nIndex);
-            }
+        if(bLockIndex)
+        {
+            NetKeepAliveThread::unlockIndex(nIndex);
         }
     }
 }
@@ -197,7 +171,7 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
     int remoteLen = sizeof(SOCKADDR_IN);
     int localLen = sizeof(SOCKADDR_IN);
 
-    m_pobjNetSocketIocp->m_lpfnGetAcceptExSockAddrs(pIoContext->m_wsaBuf.buf, pIoContext->m_wsaBuf.len - ((sizeof(SOCKADDR_IN)+16)*2),
+    m_pobjNetSocketIocp->m_lpfnGetAcceptExSockAddrs(pIoContext->m_wsaBuf.buf, 0,
         sizeof(SOCKADDR_IN)+16, sizeof(SOCKADDR_IN)+16, (LPSOCKADDR*)&LocalAddr, &localLen, (LPSOCKADDR*)&ClientAddr, &remoteLen);
 
     NETLOG(NET_LOG_LEVEL_INFO, QString("new client connected, ip:%1 port:%2 socket:%3")
@@ -508,6 +482,18 @@ bool NetSocketIocpSSLThread::doSend(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTE
 
 bool NetSocketIocpSSLThread::doDisConnect(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTEXT_SSL *pIoContext)
 {
+    if(pSocketContext == NULL || pIoContext == NULL)
+    {
+        return false;
+    }
+
+    if(pIoContext->m_OpType == NET_POST_ACCEPT)
+    {
+        closesocket(pIoContext->m_sockAccept);
+        RELEASE( pIoContext );
+        return true;
+    }
+
     if(pSocketContext == m_pobjNetSocketIocp->m_pListenContext)
     {
         RELEASE(pIoContext);

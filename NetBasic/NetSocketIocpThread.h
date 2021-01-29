@@ -26,7 +26,7 @@ private:
 
     bool doSend(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext , qint32 p_nSendSuccessSize = 0);
 
-    bool doDisConnect(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext );
+    bool doDisConnect(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext);
 
 private:
     NetSocketIocp* m_pobjNetSocketIocp;

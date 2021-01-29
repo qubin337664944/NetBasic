@@ -255,7 +255,7 @@ bool NetSocketIocp::postAccept(IO_CONTEXT *pAcceptIoContext)
     }
     NETLOG(NET_LOG_LEVEL_INFO, QString("WSASocket success, socket:%1").arg(pAcceptIoContext->m_sockAccept));
 
-    if(FALSE == m_lpfnAcceptEx( m_pListenContext->m_Socket, pAcceptIoContext->m_sockAccept, p_wbuf->buf, p_wbuf->len - ((sizeof(SOCKADDR_IN)+16)*2),
+    if(FALSE == m_lpfnAcceptEx( m_pListenContext->m_Socket, pAcceptIoContext->m_sockAccept, p_wbuf->buf, 0,
                                 sizeof(SOCKADDR_IN)+16, sizeof(SOCKADDR_IN)+16, &dwBytes, p_ol))
     {
         if(WSA_IO_PENDING != WSAGetLastError())
