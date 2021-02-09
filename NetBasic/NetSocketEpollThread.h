@@ -36,13 +36,15 @@
 #include "NetInclude.h"
 
 class EpollPacket;
-
+class NetPacketManager;
+class NetKeepAliveThread;
 class NetSocketEpollThread : public QThread
 {
 public:
     NetSocketEpollThread();
 
-    bool init(qint32 p_nThreadID, qint32 p_nEpFd, qint32 p_nListenFd);
+    bool init(qint32 p_nThreadID, qint32 p_nEpFd, qint32 p_nListenFd, NetPacketManager* p_pobjNetPacketManager,
+              NetKeepAliveThread* p_pobjNetKeepAliveThread);
 
 protected:
     virtual	void	run();
@@ -55,6 +57,9 @@ public:
     void closeConnect(qint32 p_nFd, EpollPacket *p_pobjEpollPacket);
 
 private:
+    NetPacketManager*           m_pobjNetPacketManager;
+    NetKeepAliveThread*         m_pobjNetKeepAliveThread;
+
     qint32 m_nThreadID;
     qint32 m_nEpFd;
     qint32 m_nListenFd;

@@ -216,7 +216,8 @@ public:
     NetSocketIocp();
     ~NetSocketIocp();
 
-    virtual bool init(const qint32 p_nThreadNum);
+    virtual bool init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager,
+                      NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString& p_strKeyPath, const QString& p_strCertPath);
 
     virtual bool start(const QString& p_strBindIP, const qint32 p_nPort);
 
@@ -238,6 +239,9 @@ public:
 public:
     QString m_strBindIP;
     qint32 m_nPort;
+
+    NetPacketManager*           m_pobjNetPacketManager;
+    NetKeepAliveThread*         m_pobjNetKeepAliveThread;
 
     HANDLE                       m_hIOCompletionPort;           // 完成端口的句柄
     LPFN_ACCEPTEX                m_lpfnAcceptEx;                // AcceptEx 和 GetAcceptExSockaddrs 的函数指针，用于调用这两个扩展函数

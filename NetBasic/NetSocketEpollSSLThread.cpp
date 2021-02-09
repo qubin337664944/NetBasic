@@ -21,12 +21,16 @@ NetSocketEpollSSLThread::~NetSocketEpollSSLThread()
 
 }
 
-bool NetSocketEpollSSLThread::init(qint32 p_nThreadID, qint32 p_nEpFd, qint32 p_nListenFd, void* p_pobjsslCtx)
+bool NetSocketEpollSSLThread::init(qint32 p_nThreadID, qint32 p_nEpFd, qint32 p_nListenFd, void* p_pobjsslCtx, NetPacketManager* p_pobjNetPacketManager,
+                                   NetKeepAliveThread* p_pobjNetKeepAliveThread)
 {
     m_nThreadID = p_nThreadID;
     m_nEpFd = p_nEpFd;
     m_nListenFd = p_nListenFd;
     m_pobjsslCtx = p_pobjsslCtx;
+
+    m_pobjNetPacketManager = p_pobjNetPacketManager;
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
 
     return true;
 }
@@ -57,7 +61,7 @@ void	NetSocketEpollSSLThread::run()
             bool bLockKeepAlive = false;
             quint32 nIndex = pobjPacket->nIndex;
             void* pobjContext = NULL;
-            if(NetKeepAliveThread::lockIndexContext(nIndex, sockfd, pobjPacket->nSissionID, pobjContext))
+            if(m_pobjNetKeepAliveThread->lockIndexContext(nIndex, sockfd, pobjPacket->nSissionID, pobjContext))
             {
                 bLockKeepAlive = true;
             }
@@ -74,7 +78,7 @@ void	NetSocketEpollSSLThread::run()
 
                 if(bLockKeepAlive)
                 {
-                    NetKeepAliveThread::unlockIndex(nIndex);
+                    m_pobjNetKeepAliveThread->unlockIndex(nIndex);
                 }
 
                 continue;
@@ -90,7 +94,7 @@ void	NetSocketEpollSSLThread::run()
 
                 if(bLockKeepAlive)
                 {
-                    NetKeepAliveThread::unlockIndex(nIndex);
+                    m_pobjNetKeepAliveThread->unlockIndex(nIndex);
                 }
                 continue;
             }
@@ -105,14 +109,14 @@ void	NetSocketEpollSSLThread::run()
 
                 if(bLockKeepAlive)
                 {
-                    NetKeepAliveThread::unlockIndex(nIndex);
+                    m_pobjNetKeepAliveThread->unlockIndex(nIndex);
                 }
                 continue;
             }
 
             if(bLockKeepAlive)
             {
-                NetKeepAliveThread::unlockIndex(nIndex);
+                m_pobjNetKeepAliveThread->unlockIndex(nIndex);
             }
         }
     }
@@ -199,7 +203,7 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
 
         quint32 nSissionID = 0;
         quint32 nIndex = 0;
-        if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo, nSissionID, nIndex))
+        if(!m_pobjNetKeepAliveThread->addAlive(objNetKeepAliveInfo, nSissionID, nIndex))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("add socket to keep alive failed, socket:%1")
                    .arg(connfd));
@@ -222,7 +226,7 @@ bool NetSocketEpollSSLThread::doAccept(qint32 p_nListenFd, EpollSSLPacket* p_pob
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,epoll_ctl add,error:%3").arg(m_nThreadID).arg(connfd).arg(strerror(errno)));
             delete pobjPacket;
-            NetKeepAliveThread::delAlive(connfd, nSissionID, nIndex);
+            m_pobjNetKeepAliveThread->delAlive(connfd, nSissionID, nIndex);
             continue;
         }
 
@@ -236,7 +240,7 @@ bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpol
 {
     if(p_pobjEpollPacket->pobjNetPacketBase == NULL)
     {
-        p_pobjEpollPacket->pobjNetPacketBase =  NetPacketManager::allocPacket();
+        p_pobjEpollPacket->pobjNetPacketBase =  m_pobjNetPacketManager->allocPacket();
         p_pobjEpollPacket->pobjNetPacketBase->m_nSocket = p_nFd;
         p_pobjEpollPacket->pobjNetPacketBase->m_nSissionID = p_pobjEpollPacket->nSissionID;
         p_pobjEpollPacket->pobjNetPacketBase->m_nIndex = p_pobjEpollPacket->nIndex;
@@ -255,19 +259,19 @@ bool NetSocketEpollSSLThread::doReceive(qint32 p_nFd, EpollSSLPacket* p_pobjEpol
              NETLOG(NET_LOG_LEVEL_TRACE, QString("thread:%1,socket:%2,SSL_read size:%3 success").arg(m_nThreadID).arg(p_nFd).arg(nLen));
              p_pobjEpollPacket->pobjNetPacketBase->m_pobjSSL = p_pobjEpollPacket->pobjSsl;
 
-             NetPacketManager::appendReceiveBuffer(p_pobjEpollPacket->pobjNetPacketBase, szDataTemp, nLen);
+             m_pobjNetPacketManager->appendReceiveBuffer(p_pobjEpollPacket->pobjNetPacketBase, szDataTemp, nLen);
              if(p_pobjEpollPacket->pobjNetPacketBase->m_bIsReceiveEnd)
              {
-                 if(!NetKeepAliveThread::setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID, p_pobjEpollPacket->nIndex, false))
+                 if(!m_pobjNetKeepAliveThread->setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID, p_pobjEpollPacket->nIndex, false))
                  {
                      NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                      return false;
                  }
 
-                 NetKeepAliveThread::unlockIndex(p_pobjEpollPacket->nIndex);
+                 m_pobjNetKeepAliveThread->unlockIndex(p_pobjEpollPacket->nIndex);
                  p_bIsLock = false;
 
-                  NetPacketManager::processCallBack(p_pobjEpollPacket->pobjNetPacketBase);
+                  m_pobjNetPacketManager->processCallBack(p_pobjEpollPacket->pobjNetPacketBase);
 
                   if(p_pobjEpollPacket->pobjNetPacketBase)
                   {
@@ -335,7 +339,7 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
 
              if(pobjEpollSendPacket->nSendIndex == pobjEpollSendPacket->bytSendData.size())
              {
-                 if(!NetKeepAliveThread::setCheckSend(p_nFd, pobjEpollSendPacket->nSissionID, pobjEpollSendPacket->nIndex, false))
+                 if(!m_pobjNetKeepAliveThread->setCheckSend(p_nFd, pobjEpollSendPacket->nSissionID, pobjEpollSendPacket->nIndex, false))
                  {
                       NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(p_nFd));
                       return false;
@@ -343,7 +347,7 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
 
                  if(pobjEpollSendPacket->bKeepAlive)
                  {
-                     if(!NetKeepAliveThread::setCheckReceive(p_nFd, pobjEpollSendPacket->nSissionID, pobjEpollSendPacket->nIndex, true))
+                     if(!m_pobjNetKeepAliveThread->setCheckReceive(p_nFd, pobjEpollSendPacket->nSissionID, pobjEpollSendPacket->nIndex, true))
                      {
                           NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                           return false;
@@ -357,7 +361,7 @@ bool NetSocketEpollSSLThread::doSend(qint32 p_nFd, EpollSSLPacket *p_pobjEpollPa
                      {
                          NETLOG(NET_LOG_LEVEL_ERROR, QString("thread:%1,socket:%2,epoll_ctl mod epoll in,error:%3").arg(m_nThreadID).arg(p_nFd).arg(strerror(errno)));
 
-                         if(!NetKeepAliveThread::setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID,p_pobjEpollPacket->nIndex, false))
+                         if(!m_pobjNetKeepAliveThread->setCheckReceive(p_nFd, p_pobjEpollPacket->nSissionID,p_pobjEpollPacket->nIndex, false))
                          {
                               NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(p_nFd));
                               return false;
@@ -449,7 +453,7 @@ void NetSocketEpollSSLThread::closeConnect(qint32 p_nFd, EpollSSLPacket *p_pobjE
 {
     NETLOG(NET_LOG_LEVEL_INFO, QString("thread:%1,socket:%2,close connect").arg(m_nThreadID).arg(p_nFd));
 
-    if(NetKeepAliveThread::delAlive(p_nFd, p_pobjEpollPacket->nSissionID, p_pobjEpollPacket->nIndex))
+    if(m_pobjNetKeepAliveThread->delAlive(p_nFd, p_pobjEpollPacket->nSissionID, p_pobjEpollPacket->nIndex))
     {
         if(p_pobjEpollPacket->pobjSsl)
         {

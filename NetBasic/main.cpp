@@ -56,7 +56,7 @@ static void HttpCallThread(NetPacketBase* p_pobjPacket, void* p_pMaster)
 static void HttpCall(NetPacketBase* p_pobjPacket, void* p_pMaster)
 {
     NetPacketHttp* pobjPacketHttp = (NetPacketHttp*)p_pobjPacket;
-    qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
+    //qDebug()<<pobjPacketHttp->m_bytReceiveAllDate.data();
     //qDebug()<< pobjPacketHttp->m_bytData.size();
 
     NetServerInterface* pobjNetInterface = (NetServerInterface*)p_pMaster;
@@ -103,16 +103,34 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    NetServerInterface objNetServerInterface;
+    NetServerInterface objNetServerInterfaceHttp;
     NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
-    NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 4, HttpCall, &objNetServerInterface))
+
+    QString strKey = "G:\\1122\\server.key";
+    QString strCert = "G:\\1122\\server.crt";
+//    QString strKey = "ssl.key";
+//    QString strCert = "ssl.crt";
+
+    if(!objNetServerInterfaceHttp.init(NET_PROTOCOL_HTTP, 1, HttpCall, &objNetServerInterfaceHttp))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
     }
 
-    if(!objNetServerInterface.start("0.0.0.0", 443))
+    if(!objNetServerInterfaceHttp.start("0.0.0.0", 80))
+    {
+        qDebug()<<"objNetInterface.start error";
+        return a.exec();
+    }
+
+    NetServerInterface objNetServerInterfaceHttps;
+    if(!objNetServerInterfaceHttps.init(NET_PROTOCOL_HTTPS, 1, HttpCall, &objNetServerInterfaceHttps, strKey, strCert))
+    {
+        qDebug()<<"objNetInterface.init error";
+        return a.exec();
+    }
+
+    if(!objNetServerInterfaceHttps.start("0.0.0.0", 443))
     {
         qDebug()<<"objNetInterface.start error";
         return a.exec();
@@ -123,29 +141,3 @@ int main(int argc, char *argv[])
 
     return a.exec();
 }
-
-//https
-//int main(int argc, char *argv[])
-//{
-//    QCoreApplication a(argc, argv);
-
-//    NetServerInterface objNetServerInterface;
-//    NetServerInterface::setAppLogCallBack(NET_LOG_LEVEL_ERROR,NULL);
-//    NetServerInterface::setSslKeyCertPath("G:\\1122\\server.key", "G:\\1122\\server.crt");
-//    if(!objNetServerInterface.init(NET_PROTOCOL_HTTPS, 4, HttpCall, &objNetServerInterface))
-//    {
-//        qDebug()<<"objNetInterface.init error";
-//        return a.exec();
-//    }
-
-//    if(!objNetServerInterface.start("0.0.0.0", 443))
-//    {
-//        qDebug()<<"objNetInterface.start error";
-//        return a.exec();
-//    }
-
-//    TestCount objTestCount;
-//    objTestCount.start();
-
-//    return a.exec();
-//}

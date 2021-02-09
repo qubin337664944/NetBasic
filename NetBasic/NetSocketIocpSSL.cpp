@@ -61,9 +61,6 @@ static void kill_locks(void)
   OPENSSL_free(lockarray);
 }
 
-QString NetSocketIocpSSL::g_strKeyPath = "ssl.key";
-QString NetSocketIocpSSL::g_strCertPath = "ssl.crt";
-
 NetSocketIocpSSL::NetSocketIocpSSL()
 {
 }
@@ -83,8 +80,14 @@ NetSocketIocpSSL::~NetSocketIocpSSL()
     RELEASE(m_pListenContext);
 }
 
-bool NetSocketIocpSSL::init(const qint32 p_nThreadNum)
+bool NetSocketIocpSSL::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString &p_strKeyPath, const QString &p_strCertPath)
 {
+    m_pobjNetPacketManager = p_pobjNetPacketManager;
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
+
+    m_strKeyPath = p_strKeyPath;
+    m_strCertPath = p_strCertPath;
+
     WSADATA wsaData;
     int nResult;
     nResult = WSAStartup(MAKEWORD(2,2), &wsaData);
@@ -121,7 +124,7 @@ bool NetSocketIocpSSL::init(const qint32 p_nThreadNum)
 
     m_pobjerrBio = (void*)BIO_new_fd(2, BIO_NOCLOSE);
 
-    r = SSL_CTX_use_certificate_file((SSL_CTX*)m_pobjsslCtx, g_strCertPath.toStdString().c_str(), SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_certificate_file((SSL_CTX*)m_pobjsslCtx, m_strCertPath.toStdString().c_str(), SSL_FILETYPE_PEM);
     if(r <= 0)
     {
         unsigned long ulErr = ERR_get_error(); // 获取错误号
@@ -134,14 +137,14 @@ bool NetSocketIocpSSL::init(const qint32 p_nThreadNum)
             qDebug()<<  szErrMsg;
         }
 
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_certificate_file <= 0,error:%1,cert file:%2").arg(strerror(errno)).arg(g_strCertPath));
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_certificate_file <= 0,error:%1,cert file:%2").arg(strerror(errno)).arg(m_strCertPath));
         return false;
     }
 
-    r = SSL_CTX_use_PrivateKey_file((SSL_CTX*)m_pobjsslCtx, g_strKeyPath.toStdString().c_str(), SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_PrivateKey_file((SSL_CTX*)m_pobjsslCtx, m_strKeyPath.toStdString().c_str(), SSL_FILETYPE_PEM);
     if(r <= 0)
     {
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_PrivateKey_file <= 0,error:%1,key file:%2").arg(strerror(errno)).arg(g_strKeyPath));
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_PrivateKey_file <= 0,error:%1,key file:%2").arg(strerror(errno)).arg(m_strKeyPath));
         return false;
     }
 
@@ -164,7 +167,7 @@ bool NetSocketIocpSSL::init(const qint32 p_nThreadNum)
     for(int i = 0; i < p_nThreadNum; i++)
     {
         NetSocketIocpSSLThread* pobjNetSocketIocpThread = new NetSocketIocpSSLThread;
-        pobjNetSocketIocpThread->init(i, this, m_pobjsslCtx);
+        pobjNetSocketIocpThread->init(i, this, m_pobjsslCtx, p_pobjNetPacketManager, p_pobjNetKeepAliveThread);
         pobjNetSocketIocpThread->start();
         m_vecNetSocketIocpThread.append(pobjNetSocketIocpThread);
     }
@@ -300,7 +303,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     }
 
     void* pobjContext = NULL;
-    if(!NetKeepAliveThread::lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
+    if(!m_pobjNetKeepAliveThread->lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         return false;
@@ -308,25 +311,25 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
 
     QByteArray bytSend;
 
-    if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, bytSend))
+    if(!m_pobjNetPacketManager->prepareResponse(p_pobjNetPacketBase, bytSend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed"));
-        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
     void* pobjExtend = NULL;
-    if(!NetKeepAliveThread::getExtend(p_pobjNetPacketBase->m_nIndex, pobjExtend))
+    if(!m_pobjNetKeepAliveThread->getExtend(p_pobjNetPacketBase->m_nIndex, pobjExtend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
-        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
     if(pobjExtend == NULL)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("getExtend failed,pobjSocketContext = null,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
-        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
@@ -349,7 +352,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
         if(nSendLen <= 0)
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_write failed,socket:%1,sissionId:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(p_pobjNetPacketBase->m_nSissionID));
-            NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+            m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
             return false;
         }
     }
@@ -402,7 +405,7 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
         RELEASE(pobjIoContext);
     }
 
-    NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+    m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
     return bRet;
 }
 
@@ -482,7 +485,7 @@ bool NetSocketIocpSSL::postSend(IO_CONTEXT_SSL *pIoContext)
 
     pIoContext->ResetBuffer();
 
-    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, pIoContext->m_nTimeOutS, pIoContext))
+    if(!m_pobjNetKeepAliveThread->setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, pIoContext->m_nTimeOutS, pIoContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -491,7 +494,7 @@ bool NetSocketIocpSSL::postSend(IO_CONTEXT_SSL *pIoContext)
     int nBytesSend = WSASend(pIoContext->m_sockAccept, p_wbuf, 1, &dwBytes, dwFlags, p_ol, NULL );
     if ((SOCKET_ERROR == nBytesSend) && (WSA_IO_PENDING != WSAGetLastError()))
     {
-        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, pIoContext->m_nTimeOutS, pIoContext))
+        if(!m_pobjNetKeepAliveThread->setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, pIoContext->m_nTimeOutS, pIoContext))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         }

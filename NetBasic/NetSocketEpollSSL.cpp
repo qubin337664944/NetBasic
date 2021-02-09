@@ -9,9 +9,6 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-QString NetSocketEpollSSL::g_strKeyPath = "ssl.key";
-QString NetSocketEpollSSL::g_strCertPath = "ssl.crt";
-
 static void sigpipe_handle(int signo)
 {
      return;
@@ -47,8 +44,15 @@ NetSocketEpollSSL::~NetSocketEpollSSL()
     ERR_free_strings();
 }
 
-bool NetSocketEpollSSL::init(const qint32 p_nThreadNum)
+bool NetSocketEpollSSL::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager,
+                             NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString& p_strKeyPath, const QString& p_strCertPath)
 {
+    m_pobjNetPacketManager = p_pobjNetPacketManager;
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
+
+    m_strKeyPath = p_strKeyPath;
+    m_strCertPath = p_strCertPath;
+
 #ifndef WIN32
     signal(SIGPIPE, sigpipe_handle);
 #endif
@@ -70,17 +74,17 @@ bool NetSocketEpollSSL::init(const qint32 p_nThreadNum)
 
     m_pobjerrBio = (void*)BIO_new_fd(2, BIO_NOCLOSE);
 
-    r = SSL_CTX_use_certificate_file((SSL_CTX*)m_pobjsslCtx, g_strCertPath.toStdString().c_str(), SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_certificate_file((SSL_CTX*)m_pobjsslCtx, m_strCertPath.toStdString().c_str(), SSL_FILETYPE_PEM);
     if(r <= 0)
     {
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_certificate_file <= 0,error:%1,cert file:%2").arg(strerror(errno)).arg(g_strCertPath));
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_certificate_file <= 0,error:%1,cert file:%2").arg(strerror(errno)).arg(m_strCertPath));
         return false;
     }
 
-    r = SSL_CTX_use_PrivateKey_file((SSL_CTX*)m_pobjsslCtx, g_strKeyPath.toStdString().c_str(), SSL_FILETYPE_PEM);
+    r = SSL_CTX_use_PrivateKey_file((SSL_CTX*)m_pobjsslCtx, m_strKeyPath.toStdString().c_str(), SSL_FILETYPE_PEM);
     if(r <= 0)
     {
-        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_PrivateKey_file <= 0,error:%1,key file:%2").arg(strerror(errno)).arg(g_strKeyPath));
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_use_PrivateKey_file <= 0,error:%1,key file:%2").arg(strerror(errno)).arg(m_strKeyPath));
         return false;
     }
 
@@ -127,7 +131,7 @@ bool NetSocketEpollSSL::init(const qint32 p_nThreadNum)
     for(int i = 0; i < p_nThreadNum; i++)
     {
         NetSocketEpollSSLThread* pobjNetSocketEpollSSLThread = new NetSocketEpollSSLThread;
-        pobjNetSocketEpollSSLThread->init(i, m_nEpfd, m_nListenfd, m_pobjsslCtx);
+        pobjNetSocketEpollSSLThread->init(i, m_nEpfd, m_nListenfd, m_pobjsslCtx, m_pobjNetPacketManager, m_pobjNetKeepAliveThread);
         m_vecNetSocketEpollThread.append(pobjNetSocketEpollSSLThread);
     }
 
@@ -221,7 +225,7 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
     pobjEpollSendPacket->bSslConnected = true;
     pobjEpollSendPacket->bTcpConnected = true;
 
-    if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, pobjEpollSendPacket->bytSendData))
+    if(!m_pobjNetPacketManager->prepareResponse(p_pobjNetPacketBase, pobjEpollSendPacket->bytSendData))
     {
         delete pobjEpollSendPacket;
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed, socket:%1").arg(pobjEpollSendPacket->nFd));
@@ -230,22 +234,22 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
 
     quint32 nIndex = pobjEpollSendPacket->nIndex;
     void* pobjContext = NULL;
-    if(!NetKeepAliveThread::lockIndexContext(pobjEpollSendPacket->nIndex, pobjEpollSendPacket->nFd, pobjEpollSendPacket->nSissionID, pobjContext))
+    if(!m_pobjNetKeepAliveThread->lockIndexContext(pobjEpollSendPacket->nIndex, pobjEpollSendPacket->nFd, pobjEpollSendPacket->nSissionID, pobjContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, p_pobjNetPacketBase->m_nTimeOutS))
+    if(!m_pobjNetKeepAliveThread->setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, p_pobjNetPacketBase->m_nTimeOutS))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
-        NetKeepAliveThread::unlockIndex(nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(nIndex);
         return false;
     }
 
-    NetKeepAliveThread::unlockIndex(nIndex);
+    m_pobjNetKeepAliveThread->unlockIndex(nIndex);
 
     struct epoll_event stEvent;
     memset(&stEvent, 0, sizeof(stEvent));
@@ -254,7 +258,7 @@ bool NetSocketEpollSSL::send(NetPacketBase *p_pobjNetPacketBase)
     int nRet = epoll_ctl(m_nEpfd, EPOLL_CTL_MOD, p_pobjNetPacketBase->m_nSocket,&stEvent);
     if(nRet < 0)
     {
-        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID,p_pobjNetPacketBase->m_nIndex,  false);
+        m_pobjNetKeepAliveThread->setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID,p_pobjNetPacketBase->m_nIndex,  false);
         delete pobjEpollSendPacket;
         NETLOG(NET_LOG_LEVEL_ERROR, QString("epoll_ctl mod EPOLLOUT failed, socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         return false;

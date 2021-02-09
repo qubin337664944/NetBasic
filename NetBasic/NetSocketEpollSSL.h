@@ -98,15 +98,19 @@ public:
     NetSocketEpollSSL();
     ~NetSocketEpollSSL();
 
-    virtual bool init(const qint32 p_nThreadNum);
+    virtual bool init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager,
+                      NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString& p_strKeyPath, const QString& p_strCertPath);
+
     virtual bool start(const QString& p_strBindIP, const qint32 p_nPort);
     virtual bool send(NetPacketBase* p_pobjNetPacketBase);
 
-public:
-    static QString g_strKeyPath;
-    static QString g_strCertPath;
-
 private:
+    QString m_strKeyPath;
+    QString m_strCertPath;
+
+    NetPacketManager*           m_pobjNetPacketManager;
+    NetKeepAliveThread*         m_pobjNetKeepAliveThread;
+
     int                         m_nEpfd;
     int                         m_nListenfd;
     void*                     m_pobjsslCtx;

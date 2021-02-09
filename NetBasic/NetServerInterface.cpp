@@ -10,6 +10,8 @@
 NetServerInterface::NetServerInterface()
 {
     m_pobjSocketBase = NULL;
+    m_pobjNetKeepAliveThread = NULL;
+    m_pobjNetPacketManager = NULL;
 }
 
 NetServerInterface::~NetServerInterface()
@@ -23,54 +25,63 @@ void NetServerInterface::setAppLogCallBack(const qint32 p_nLogLevel, CallAppLog 
     NetLog::g_fnAppLogCallBack = p_fnApplog;
 }
 
-void NetServerInterface::setSslKeyCertPath(const QString &p_strKeyPath, const QString &p_strCertPath)
+bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNum, CallAppReceivePacket p_fnAppReceivePacket, void *p_pMaster, const QString& p_strKeyPath, const QString& p_strCertPath)
 {
-#ifdef WIN32
-    NetSocketIocpSSL::g_strKeyPath = p_strKeyPath;
-    NetSocketIocpSSL::g_strCertPath = p_strCertPath;
-#else
-    NetSocketEpollSSL::g_strKeyPath = p_strKeyPath;
-    NetSocketEpollSSL::g_strCertPath = p_strCertPath;
-#endif
-}
+    if(m_pobjNetPacketManager == NULL)
+    {
+        m_pobjNetPacketManager = new NetPacketManager;
+    }
 
-bool NetServerInterface::init(const qint32 p_nProtocol, const qint32 p_nThreadNum, CallAppReceivePacket p_fnAppReceivePacket, void *p_pMaster)
-{
-    NetPacketManager::init(p_nProtocol, p_fnAppReceivePacket, p_pMaster);
+    if(!m_pobjNetPacketManager->init(p_nProtocol, p_fnAppReceivePacket, p_pMaster))
+    {
+        return false;
+    }
 
-    if(!objNetKeepAliveThread.init(KEEPALIVE_MAXSIZE, p_nProtocol))
+    if(m_pobjNetKeepAliveThread == NULL)
+    {
+        m_pobjNetKeepAliveThread = new NetKeepAliveThread;
+    }
+
+    if(!m_pobjNetKeepAliveThread->init(KEEPALIVE_MAXSIZE, p_nProtocol))
     {
         return false;
     }
 
     if(KEEPALIVE_DETECT)
     {
-        objNetKeepAliveThread.start();
+        m_pobjNetKeepAliveThread->start();
+    }
+
+    if(m_pobjSocketBase == NULL)
+    {
+        delete m_pobjSocketBase;
+        m_pobjSocketBase = NULL;
     }
 
 #ifdef WIN32
     if(p_nProtocol == NET_PROTOCOL_HTTP)
     {
         m_pobjSocketBase = new NetSocketIocp;
-        return m_pobjSocketBase->init(p_nThreadNum);
     }
     else if(p_nProtocol == NET_PROTOCOL_HTTPS)
     {
         m_pobjSocketBase = new NetSocketIocpSSL;
-        return m_pobjSocketBase->init(p_nThreadNum);
     }
 #else
     if(p_nProtocol == NET_PROTOCOL_HTTP)
     {
         m_pobjSocketBase = new NetSocketEpoll;
-        return m_pobjSocketBase->init(p_nThreadNum);
     }
     else if(p_nProtocol == NET_PROTOCOL_HTTPS)
     {
         m_pobjSocketBase = new NetSocketEpollSSL;
-        return m_pobjSocketBase->init(p_nThreadNum);
     }
 #endif
+
+    if(m_pobjSocketBase)
+    {
+        return m_pobjSocketBase->init(p_nThreadNum, m_pobjNetPacketManager, m_pobjNetKeepAliveThread, p_strKeyPath, p_strCertPath);
+    }
 
     return false;
 }
@@ -102,7 +113,7 @@ bool NetServerInterface::closeConnect(NetPacketBase *pobjNetPacketBase)
         return false;
     }
 
-    return NetKeepAliveThread::closeConnect(pobjNetPacketBase->m_nSocket, pobjNetPacketBase->m_nSissionID, pobjNetPacketBase->m_nIndex);
+    return m_pobjNetKeepAliveThread->closeConnect(pobjNetPacketBase->m_nSocket, pobjNetPacketBase->m_nSissionID, pobjNetPacketBase->m_nIndex);
 }
 
 void NetServerInterface::uninit()
@@ -110,7 +121,20 @@ void NetServerInterface::uninit()
     if(m_pobjSocketBase)
     {
         delete m_pobjSocketBase;
+        m_pobjSocketBase = NULL;
     }
 
-    NetPacketManager::uninit();
+    m_pobjNetPacketManager->uninit();
+
+    if(m_pobjNetPacketManager)
+    {
+        delete m_pobjNetPacketManager;
+        m_pobjNetPacketManager = NULL;
+    }
+
+    if(m_pobjNetKeepAliveThread)
+    {
+        delete m_pobjNetKeepAliveThread;
+        m_pobjNetKeepAliveThread = NULL;
+    }
 }

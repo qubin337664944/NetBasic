@@ -18,7 +18,7 @@ NetSocketIocpSSLThread::NetSocketIocpSSLThread()
     m_pobjsslCtx = NULL;
 }
 
-void NetSocketIocpSSLThread::init(qint32 p_nThreadID, NetSocketIocpSSL *p_pobjNetSocketIocp, void *p_pobjsslCtx)
+void NetSocketIocpSSLThread::init(qint32 p_nThreadID, NetSocketIocpSSL *p_pobjNetSocketIocp, void *p_pobjsslCtx, NetPacketManager *p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread)
 {
     m_nThreadID = p_nThreadID;
 
@@ -27,6 +27,10 @@ void NetSocketIocpSSLThread::init(qint32 p_nThreadID, NetSocketIocpSSL *p_pobjNe
     m_hIOCompletionPort = m_pobjNetSocketIocp->getIOCompletionPortHandle();
 
     m_pobjsslCtx = p_pobjsslCtx;
+
+    m_pobjNetPacketManager = p_pobjNetPacketManager;
+
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
 }
 
 void NetSocketIocpSSLThread::run()
@@ -59,7 +63,7 @@ void NetSocketIocpSSLThread::run()
         if(pIoContext->m_OpType != NET_POST_ACCEPT)
         {
             void* vpobjConText = NULL;
-            if(NetKeepAliveThread::lockIndexContext(nIndex, pIoContext->m_sockAccept, pIoContext->m_nSissionID, vpobjConText))
+            if(m_pobjNetKeepAliveThread->lockIndexContext(nIndex, pIoContext->m_sockAccept, pIoContext->m_nSissionID, vpobjConText))
             {
                 bLockIndex = true;
 
@@ -67,7 +71,7 @@ void NetSocketIocpSSLThread::run()
                 {
                     if(bLockIndex)
                     {
-                        NetKeepAliveThread::unlockIndex(nIndex);
+                        m_pobjNetKeepAliveThread->unlockIndex(nIndex);
                     }
 
                     RELEASE(pIoContext);
@@ -159,7 +163,7 @@ void NetSocketIocpSSLThread::run()
 
         if(bLockIndex)
         {
-            NetKeepAliveThread::unlockIndex(nIndex);
+            m_pobjNetKeepAliveThread->unlockIndex(nIndex);
         }
     }
 }
@@ -215,7 +219,7 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
     objNetKeepAliveInfo.pobjExtend = pNewSocketContext;
     quint32 nSissionID = 0;
     quint32 nIndex = 0;
-    if(!NetKeepAliveThread::addAlive(objNetKeepAliveInfo, nSissionID, nIndex))
+    if(!m_pobjNetKeepAliveThread->addAlive(objNetKeepAliveInfo, nSissionID, nIndex))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("add socket to keep alive failed, socket:%1")
                .arg(pIoContext->m_sockAccept));
@@ -241,7 +245,7 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
     if(!bIsLock)
     {
         void* vpobjConText = NULL;
-        if(!NetKeepAliveThread::lockIndexContext(pIoContext->m_nIndex, objNetKeepAliveInfo.nSocket, pIoContext->m_nSissionID, vpobjConText))
+        if(!m_pobjNetKeepAliveThread->lockIndexContext(pIoContext->m_nIndex, objNetKeepAliveInfo.nSocket, pIoContext->m_nSissionID, vpobjConText))
         {
             NETLOG(NET_LOG_LEVEL_WORNING, QString("lockIndexContext failed, socket:%1")
                    .arg(objNetKeepAliveInfo.nSocket));
@@ -259,7 +263,7 @@ bool NetSocketIocpSSLThread::doAccept(SOCKET_CONTEXT_SSL *pSocketContext, IO_CON
     bool bRet = doReceive(pNewSocketContext, pIoContext, bIsLock);
     if(bIsLock)
     {
-        NetKeepAliveThread::unlockIndex(nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(nIndex);
     }
 
     return bRet;
@@ -269,7 +273,7 @@ bool NetSocketIocpSSLThread::doReceive(SOCKET_CONTEXT_SSL *pSocketContext, IO_CO
 {
     if(pIoContext->m_pobjNetPacketBase == NULL)
     {
-        pIoContext->m_pobjNetPacketBase =  NetPacketManager::allocPacket();
+        pIoContext->m_pobjNetPacketBase =  m_pobjNetPacketManager->allocPacket();
         pIoContext->m_pobjNetPacketBase->m_nSocket = pIoContext->m_sockAccept;
         pIoContext->m_pobjNetPacketBase->m_nSissionID = pIoContext->m_nSissionID;
         pIoContext->m_pobjNetPacketBase->m_pobjSSL = pSocketContext->m_pobjSSL;
@@ -320,20 +324,20 @@ bool NetSocketIocpSSLThread::doReceive(SOCKET_CONTEXT_SSL *pSocketContext, IO_CO
 
         if (nSSLBytes > 0)
         {
-            NetPacketManager::appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_szBuffer, nSSLBytes);
+            m_pobjNetPacketManager->appendReceiveBuffer(pIoContext->m_pobjNetPacketBase, pIoContext->m_szBuffer, nSSLBytes);
             if(pIoContext->m_pobjNetPacketBase->m_bIsReceiveEnd)
             {
-                if(!NetKeepAliveThread::setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false))
+                if(!m_pobjNetKeepAliveThread->setCheckReceive(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false))
                 {
                     NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
                     RELEASE(pIoContext);
                     return false;
                 }
 
-                NetKeepAliveThread::unlockIndex(pIoContext->m_nIndex);
+                m_pobjNetKeepAliveThread->unlockIndex(pIoContext->m_nIndex);
                 p_bIsLock = false;
 
-                NetPacketManager::processCallBack(pIoContext->m_pobjNetPacketBase);
+                m_pobjNetPacketManager->processCallBack(pIoContext->m_pobjNetPacketBase);
                 RELEASE(pIoContext);
                 return true;
             }
@@ -437,7 +441,7 @@ bool NetSocketIocpSSLThread::doSend(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTE
         return bRet;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex, false))
+    if(!m_pobjNetKeepAliveThread->setCheckSend(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex, false))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -455,7 +459,7 @@ bool NetSocketIocpSSLThread::doSend(SOCKET_CONTEXT_SSL *pSocketContext, IO_CONTE
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckReceive(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex, true, 30))
+    if(!m_pobjNetKeepAliveThread->setCheckReceive(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex, true, 30))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckReceive failed, socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -505,7 +509,7 @@ bool NetSocketIocpSSLThread::doDisConnect(SOCKET_CONTEXT_SSL *pSocketContext, IO
         return false;
     }
 
-    if(NetKeepAliveThread::delAlive(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex))
+    if(m_pobjNetKeepAliveThread->delAlive(pSocketContext->m_Socket, pSocketContext->m_nSissionID, pSocketContext->m_nIndex))
     {
         if(pSocketContext->m_pobjSSL)
         {

@@ -25,8 +25,11 @@ NetSocketIocp::~NetSocketIocp()
     RELEASE(m_pListenContext);
 }
 
-bool NetSocketIocp::init(const qint32 p_nThreadNum)
+bool NetSocketIocp::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread, const QString& p_strKeyPath = "", const QString& p_strCertPath = "")
 {
+    m_pobjNetPacketManager = p_pobjNetPacketManager;
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
+
     WSADATA wsaData;
     int nResult;
     nResult = WSAStartup(MAKEWORD(2,2), &wsaData);
@@ -47,7 +50,7 @@ bool NetSocketIocp::init(const qint32 p_nThreadNum)
     for(int i = 0; i < p_nThreadNum; i++)
     {
         NetSocketIocpThread* pobjNetSocketIocpThread = new NetSocketIocpThread;
-        pobjNetSocketIocpThread->init(i, this);
+        pobjNetSocketIocpThread->init(i, this, p_pobjNetPacketManager, m_pobjNetKeepAliveThread);
         pobjNetSocketIocpThread->start();
         m_vecNetSocketIocpThread.append(pobjNetSocketIocpThread);
     }
@@ -183,7 +186,7 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
     }
 
     void* pobjContext = NULL;
-    if(!NetKeepAliveThread::lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
+    if(!m_pobjNetKeepAliveThread->lockIndexContext(p_pobjNetPacketBase->m_nIndex, p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, pobjContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         return false;
@@ -191,10 +194,10 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
 
     QByteArray bytSend;
 
-    if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, bytSend))
+    if(!m_pobjNetPacketManager->prepareResponse(p_pobjNetPacketBase, bytSend))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed"));
-        NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
         return false;
     }
 
@@ -229,7 +232,7 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
         pobjIoContext = NULL;
     }
 
-    NetKeepAliveThread::unlockIndex(p_pobjNetPacketBase->m_nIndex);
+    m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);
 
     return bRet;
 }
@@ -310,7 +313,7 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
 
     pIoContext->ResetBuffer();
 
-    if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, pIoContext->m_nTimeOutS, pIoContext))
+    if(!m_pobjNetKeepAliveThread->setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, true, pIoContext->m_nTimeOutS, pIoContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         return false;
@@ -319,7 +322,7 @@ bool NetSocketIocp::postSend(IO_CONTEXT *pIoContext)
     int nBytesSend = WSASend(pIoContext->m_sockAccept, p_wbuf, 1, &dwBytes, dwFlags, p_ol, NULL );
     if ((SOCKET_ERROR == nBytesSend) && (WSA_IO_PENDING != WSAGetLastError()))
     {
-        if(!NetKeepAliveThread::setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, pIoContext->m_nTimeOutS, pIoContext))
+        if(!m_pobjNetKeepAliveThread->setCheckSend(pIoContext->m_sockAccept, pIoContext->m_nSissionID, pIoContext->m_nIndex, false, pIoContext->m_nTimeOutS, pIoContext))
         {
             NETLOG(NET_LOG_LEVEL_ERROR, QString("setCheckSend failed, post socket:%1").arg(pIoContext->m_sockAccept));
         }

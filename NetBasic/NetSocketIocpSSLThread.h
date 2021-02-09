@@ -9,12 +9,15 @@
 class NetSocketIocpSSL;
 struct SOCKET_CONTEXT_SSL;
 struct IO_CONTEXT_SSL;
+class NetPacketManager;
+class NetKeepAliveThread;
 class NetSocketIocpSSLThread : public QThread
 {
 public:
     NetSocketIocpSSLThread();
 
-    void init(qint32 p_nThreadID, NetSocketIocpSSL *p_pobjNetSocketIocp, void*   p_pobjsslCtx = NULL);
+    void init(qint32 p_nThreadID, NetSocketIocpSSL *p_pobjNetSocketIocp, void*p_pobjsslCtx,
+              NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread);
 
 protected:
     virtual	void	run();
@@ -30,6 +33,9 @@ private:
 
 private:
     NetSocketIocpSSL* m_pobjNetSocketIocp;
+    NetPacketManager* m_pobjNetPacketManager;
+    NetKeepAliveThread* m_pobjNetKeepAliveThread;
+
     HANDLE m_hIOCompletionPort;
 
     qint32 m_nThreadID;

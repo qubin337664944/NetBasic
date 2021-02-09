@@ -228,7 +228,8 @@ public:
     NetSocketIocpSSL();
     ~NetSocketIocpSSL();
 
-    virtual bool init(const qint32 p_nThreadNum);
+    virtual bool init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager,
+                      NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString& p_strKeyPath = "", const QString& p_strCertPath = "");
 
     virtual bool start(const QString& p_strBindIP, const qint32 p_nPort);
 
@@ -247,9 +248,12 @@ public:
 
     bool associateWithIOCP( SOCKET_CONTEXT_SSL *pSocketContext );
 
-public:
-    static QString g_strKeyPath;
-    static QString g_strCertPath;
+private:
+    QString m_strKeyPath;
+    QString m_strCertPath;
+
+    NetPacketManager* m_pobjNetPacketManager;
+    NetKeepAliveThread* m_pobjNetKeepAliveThread;
 
 public:
     QString m_strBindIP;

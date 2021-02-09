@@ -13,21 +13,21 @@ class NetPacketManager
 public:
     NetPacketManager();
 
-    static bool init(qint32 p_nProtocolType, CallAppReceivePacket p_fnSuccessReceivePacket, void* p_pMaster);
-    static void uninit();
+    bool init(qint32 p_nProtocolType, CallAppReceivePacket p_fnSuccessReceivePacket, void* p_pMaster);
+    void uninit();
 
-    static bool processCallBack(NetPacketBase* p_pobjNetPacketBase);
+    bool processCallBack(NetPacketBase* p_pobjNetPacketBase);
 
-    static NetPacketBase* allocPacket();
-    static bool appendReceiveBuffer(NetPacketBase* p_pobjNetPacketBase, char* p_szData, qint32 p_nDataLen);
+    NetPacketBase* allocPacket();
+    bool appendReceiveBuffer(NetPacketBase* p_pobjNetPacketBase, char* p_szData, qint32 p_nDataLen);
 
-    static bool prepareResponse(NetPacketBase* p_pobjNetPacketBase, QByteArray& p_bytResponse);
+    bool prepareResponse(NetPacketBase* p_pobjNetPacketBase, QByteArray& p_bytResponse);
 
-public:
-    static NetProtocolParseBase* g_pobjNetProtocolParseBase;
-    static CallAppReceivePacket g_fnSuccessReceivePacket;
-    static qint32 g_nProtocolType;
-    static void* g_pMaster;
+private:
+    NetProtocolParseBase* m_pobjNetProtocolParseBase;
+    CallAppReceivePacket m_fnSuccessReceivePacket;
+    qint32 m_nProtocolType;
+    void* m_pMaster;
 };
 
 #endif // NETPACKETMANAGER_H

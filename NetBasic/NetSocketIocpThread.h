@@ -9,12 +9,15 @@
 class NetSocketIocp;
 struct SOCKET_CONTEXT;
 struct IO_CONTEXT;
+class NetPacketManager;
+class NetKeepAliveThread;
+
 class NetSocketIocpThread : public QThread
 {
 public:
     NetSocketIocpThread();
 
-    void init(qint32 p_nThreadID, NetSocketIocp* p_pobjNetSocketIocp);
+    void init(qint32 p_nThreadID, NetSocketIocp* p_pobjNetSocketIocp, NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread);
 
 protected:
     virtual	void	run();
@@ -29,6 +32,9 @@ private:
     bool doDisConnect(SOCKET_CONTEXT* pSocketContext, IO_CONTEXT* pIoContext);
 
 private:
+    NetPacketManager* m_pobjNetPacketManager;
+    NetKeepAliveThread* m_pobjNetKeepAliveThread;
+
     NetSocketIocp* m_pobjNetSocketIocp;
     HANDLE m_hIOCompletionPort;
 

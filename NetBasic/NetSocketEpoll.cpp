@@ -8,6 +8,8 @@
 
 NetSocketEpoll::NetSocketEpoll()
 {
+    m_pobjNetPacketManager  = NULL;
+    m_pobjNetKeepAliveThread  = NULL;
 }
 
 NetSocketEpoll::~NetSocketEpoll()
@@ -27,8 +29,11 @@ NetSocketEpoll::~NetSocketEpoll()
     m_nEpfd = 0;
 }
 
-bool NetSocketEpoll::init(const qint32 p_nThreadNum)
+bool NetSocketEpoll::init(const qint32 p_nThreadNum, NetPacketManager *p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread, const QString &p_strKeyPath, const QString &p_strCertPath)
 {
+    m_pobjNetPacketManager  = p_pobjNetPacketManager;
+    m_pobjNetKeepAliveThread = p_pobjNetKeepAliveThread;
+
     m_nListenfd = socket(AF_INET, SOCK_STREAM, 0);
     if(m_nListenfd <= 0)
     {
@@ -65,7 +70,7 @@ bool NetSocketEpoll::init(const qint32 p_nThreadNum)
     for(int i = 0; i < p_nThreadNum; i++)
     {
         NetSocketEpollThread* pobjNetSocketEpollThread = new NetSocketEpollThread;
-        pobjNetSocketEpollThread->init(i, m_nEpfd, m_nListenfd);
+        pobjNetSocketEpollThread->init(i, m_nEpfd, m_nListenfd, m_pobjNetPacketManager, m_pobjNetKeepAliveThread);
         m_vecNetSocketEpollThread.append(pobjNetSocketEpollThread);
     }
 
@@ -155,7 +160,7 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
     pobjEpollSendPacket->nSissionID = p_pobjNetPacketBase->m_nSissionID;
     pobjEpollSendPacket->nIndex = p_pobjNetPacketBase->m_nIndex;
 
-    if(!NetPacketManager::prepareResponse(p_pobjNetPacketBase, pobjEpollSendPacket->bytSendData))
+    if(!m_pobjNetPacketManager->prepareResponse(p_pobjNetPacketBase, pobjEpollSendPacket->bytSendData))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("prepareResponse failed,socket:%1").arg(pobjEpollSendPacket->nFd));
         delete pobjEpollSendPacket;
@@ -164,21 +169,21 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
 
     quint32 nIndex = pobjEpollSendPacket->nIndex;
     void* pobjContext = NULL;
-    if(!NetKeepAliveThread::lockIndexContext(pobjEpollSendPacket->nIndex, pobjEpollSendPacket->nFd, pobjEpollSendPacket->nSissionID, pobjContext))
+    if(!m_pobjNetKeepAliveThread->lockIndexContext(pobjEpollSendPacket->nIndex, pobjEpollSendPacket->nFd, pobjEpollSendPacket->nSissionID, pobjContext))
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("lockIndexContext failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
         return false;
     }
 
-    if(!NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, p_pobjNetPacketBase->m_nTimeOutS))
+    if(!m_pobjNetKeepAliveThread->setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex, true, p_pobjNetPacketBase->m_nTimeOutS))
     {
         NETLOG(NET_LOG_LEVEL_WORNING, QString("setCheckSend failed, post socket:%1").arg(p_pobjNetPacketBase->m_nSocket));
         delete pobjEpollSendPacket;
-        NetKeepAliveThread::unlockIndex(nIndex);
+        m_pobjNetKeepAliveThread->unlockIndex(nIndex);
         return false;
     }
-    NetKeepAliveThread::unlockIndex(nIndex);
+    m_pobjNetKeepAliveThread->unlockIndex(nIndex);
 
     struct epoll_event stEvent;
     memset(&stEvent, 0, sizeof(stEvent));
@@ -189,7 +194,7 @@ bool NetSocketEpoll::send(NetPacketBase *p_pobjNetPacketBase)
     {
         NETLOG(NET_LOG_LEVEL_ERROR, QString("epoll_ctl mod EPOLLOUT failed,socket:%1,error:%2").arg(p_pobjNetPacketBase->m_nSocket).arg(strerror(errno)));
         delete pobjEpollSendPacket;
-        NetKeepAliveThread::setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex,  false);
+        m_pobjNetKeepAliveThread->setCheckSend(p_pobjNetPacketBase->m_nSocket, p_pobjNetPacketBase->m_nSissionID, p_pobjNetPacketBase->m_nIndex,  false);
         return false;
     }
 

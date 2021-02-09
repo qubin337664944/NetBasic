@@ -52,29 +52,29 @@ protected:
 
 public:
 
-    static bool init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType);
+    bool init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType);
 
-    static bool addAlive(const NetKeepAliveInfo& p_objNetKeepAliveInfo, quint32& p_nSissionID, quint32& p_nIndex);
-    static bool delAlive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex);
-    static bool setCheckSend(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex, const bool p_bCheck = true, const qint32 p_nSendTimeout = 30, void* p_objContxt = NULL);
-    static bool setCheckReceive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex, const bool p_bCheck = true, const qint32 p_nReceiveTimeout = 30, void* p_objContxt = NULL);
-    static bool closeConnect(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex);
+    bool addAlive(const NetKeepAliveInfo& p_objNetKeepAliveInfo, quint32& p_nSissionID, quint32& p_nIndex);
+    bool delAlive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex);
+    bool setCheckSend(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex, const bool p_bCheck = true, const qint32 p_nSendTimeout = 30, void* p_objContxt = NULL);
+    bool setCheckReceive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex, const bool p_bCheck = true, const qint32 p_nReceiveTimeout = 30, void* p_objContxt = NULL);
+    bool closeConnect(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex);
 
-    static bool lockIndex(const quint32 p_nIndex);
-    static bool tryLock(const quint32 p_nIndex, const qint32 p_nTryTimeOutMs = 5000);
-    static bool unlockIndex(const quint32 p_nIndex);
+    bool lockIndex(const quint32 p_nIndex);
+    bool tryLock(const quint32 p_nIndex, const qint32 p_nTryTimeOutMs = 5000);
+    bool unlockIndex(const quint32 p_nIndex);
 
-    static bool lockIndexContext(const quint32 p_nIndex, const quint64 p_nSocket, const quint32 p_nSissionID, void* &p_pobjExtend);
-    static bool unlockIndexContext(const quint32 p_nIndex, void* &p_pobjExtend);
+    bool lockIndexContext(const quint32 p_nIndex, const quint64 p_nSocket, const quint32 p_nSissionID, void* &p_pobjExtend);
+    bool unlockIndexContext(const quint32 p_nIndex, void* &p_pobjExtend);
 
-    static bool getExtend(const quint32 p_nIndex, void* &p_pobjExtend);
+    bool getExtend(const quint32 p_nIndex, void* &p_pobjExtend);
 
 public:
-    static NetKeepAliveInfo* g_vpobjNetKeepAliveInfo;
-    static quint32   g_nNetKeepAliveInfoSize;
-    static QMutex g_objKeepAliveMutex;
-    static quint32 g_nSissionID;
-    static qint32 g_nProtocolType;
+    NetKeepAliveInfo* m_vpobjNetKeepAliveInfo;
+    quint32   m_nNetKeepAliveInfoSize;
+    QMutex m_objKeepAliveMutex;
+    quint32 m_nSissionID;
+    qint32 m_nProtocolType;
 };
 
 #endif // NETKEEPALIVETHREAD_H

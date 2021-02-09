@@ -88,13 +88,17 @@ public:
     NetSocketEpoll();
     ~NetSocketEpoll();
 
-    virtual bool init(const qint32 p_nThreadNum);
+    virtual bool init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager,
+                      NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString& p_strKeyPath, const QString& p_strCertPath);
     virtual bool start(const QString& p_strBindIP, const qint32 p_nPort);
     virtual bool send(NetPacketBase* p_pobjNetPacketBase);
 
 private:
     int                         m_nEpfd;
     int                         m_nListenfd;
+
+    NetPacketManager*           m_pobjNetPacketManager;
+    NetKeepAliveThread*         m_pobjNetKeepAliveThread;
 
     QVector<NetSocketEpollThread*> m_vecNetSocketEpollThread;
 };
