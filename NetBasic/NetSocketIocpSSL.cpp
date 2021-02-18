@@ -76,8 +76,38 @@ NetSocketIocpSSL::~NetSocketIocpSSL()
     // 关闭IOCP句柄
     RELEASE_HANDLE(m_hIOCompletionPort);
 
+    if(m_pListenContext)
+    {
+        closesocket(m_pListenContext->m_Socket);
+    }
     // 关闭监听Socket
     RELEASE(m_pListenContext);
+
+    if(m_pobjsslCtx)
+    {
+        SSL_CTX_free((SSL_CTX*)m_pobjsslCtx);
+    }
+
+    bool bIsNoQuit = true;
+    while(bIsNoQuit)
+    {
+        bIsNoQuit = false;
+        for (int i = 0; i < m_vecNetSocketIocpThread.size(); i++)
+        {
+            if(!m_vecNetSocketIocpThread.at(i)->isFinished())
+            {
+                bIsNoQuit = true;
+                QThread::msleep(20);
+            }
+        }
+    }
+
+    for (int i = 0; i < m_vecNetSocketIocpThread.size(); i++)
+    {
+        delete m_vecNetSocketIocpThread.at(i);
+    }
+
+    m_vecNetSocketIocpThread.clear();
 }
 
 bool NetSocketIocpSSL::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread* p_pobjNetKeepAliveThread, const QString &p_strKeyPath, const QString &p_strCertPath)
@@ -121,8 +151,6 @@ bool NetSocketIocpSSL::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjN
         NETLOG(NET_LOG_LEVEL_ERROR, QString("SSL_CTX_new = null,error:%1").arg(strerror(errno)));
         return false;
     }
-
-    m_pobjerrBio = (void*)BIO_new_fd(2, BIO_NOCLOSE);
 
     r = SSL_CTX_use_certificate_file((SSL_CTX*)m_pobjsslCtx, m_strCertPath.toStdString().c_str(), SSL_FILETYPE_PEM);
     if(r <= 0)

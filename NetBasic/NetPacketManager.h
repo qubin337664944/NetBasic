@@ -12,6 +12,7 @@ class NetPacketManager
 {
 public:
     NetPacketManager();
+    ~NetPacketManager();
 
     bool init(qint32 p_nProtocolType, CallAppReceivePacket p_fnSuccessReceivePacket, void* p_pMaster);
     void uninit();

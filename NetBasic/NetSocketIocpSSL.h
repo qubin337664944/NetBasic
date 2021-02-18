@@ -102,9 +102,6 @@ struct SOCKET_CONTEXT_SSL
     SOCKET      m_Socket;                                  // 每一个客户端连接的Socket
     SOCKADDR_IN m_ClientAddr;                              // 客户端的地址
 
-    IO_CONTEXT_SSL* m_pobjSendContext;
-    IO_CONTEXT_SSL* m_pobjReceiveContext;
-
     QMap<IO_CONTEXT_SSL*, IO_CONTEXT_SSL*> m_mapSendContext;
     QMap<IO_CONTEXT_SSL*, IO_CONTEXT_SSL*> m_mapReceiveContext;
 
@@ -268,7 +265,6 @@ public:
     SOCKET_CONTEXT_SSL*              m_pListenContext;              // 用于监听的Socket的Context信息
 
     void*                       m_pobjsslCtx;
-    void*                       m_pobjerrBio;
 };
 #endif
 #endif // NETSOCKETIOCP_H

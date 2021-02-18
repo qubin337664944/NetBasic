@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 //    QString strKey = "ssl.key";
 //    QString strCert = "ssl.crt";
 
-    if(!objNetServerInterfaceHttp.init(NET_PROTOCOL_HTTP, 1, HttpCall, &objNetServerInterfaceHttp))
+    if(!objNetServerInterfaceHttp.init(NET_PROTOCOL_HTTP, 8, HttpCall, &objNetServerInterfaceHttp))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
@@ -119,12 +119,13 @@ int main(int argc, char *argv[])
 
     if(!objNetServerInterfaceHttp.start("0.0.0.0", 80))
     {
+
         qDebug()<<"objNetInterface.start error";
         return a.exec();
     }
 
     NetServerInterface objNetServerInterfaceHttps;
-    if(!objNetServerInterfaceHttps.init(NET_PROTOCOL_HTTPS, 1, HttpCall, &objNetServerInterfaceHttps, strKey, strCert))
+    if(!objNetServerInterfaceHttps.init(NET_PROTOCOL_HTTPS, 8, HttpCall, &objNetServerInterfaceHttps, strKey, strCert))
     {
         qDebug()<<"objNetInterface.init error";
         return a.exec();
@@ -135,6 +136,7 @@ int main(int argc, char *argv[])
         qDebug()<<"objNetInterface.start error";
         return a.exec();
     }
+
 
     TestCount objTestCount;
     objTestCount.start();

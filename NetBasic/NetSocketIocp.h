@@ -100,9 +100,6 @@ struct SOCKET_CONTEXT
     SOCKET      m_Socket;                                  // 每一个客户端连接的Socket
     SOCKADDR_IN m_ClientAddr;                              // 客户端的地址
 
-    IO_CONTEXT* m_pobjSendContext;
-    IO_CONTEXT* m_pobjReceiveContext;
-
     QMap<IO_CONTEXT*, IO_CONTEXT*> m_mapSendContext;
     QMap<IO_CONTEXT*, IO_CONTEXT*> m_mapReceiveContext;
 

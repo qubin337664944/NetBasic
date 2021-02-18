@@ -18,6 +18,11 @@ NetKeepAliveThread::NetKeepAliveThread()
     m_nSissionID = 1;
 }
 
+NetKeepAliveThread::~NetKeepAliveThread()
+{
+    uninit();
+}
+
 void NetKeepAliveThread::run()
 {
     while(1)
@@ -185,6 +190,7 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType)
 
     if(p_nMaxQueueSize <= 0)
     {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("NetKeepAliveThread init p_nMaxQueueSize <= 0"));
         return false;
     }
 
@@ -193,6 +199,7 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType)
 
     if(m_vpobjNetKeepAliveInfo == NULL)
     {
+        NETLOG(NET_LOG_LEVEL_ERROR, QString("m_vpobjNetKeepAliveInfo = NULL"));
         return false;
     }
 
@@ -204,6 +211,22 @@ bool NetKeepAliveThread::init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType)
     }
 
     return true;
+}
+
+void NetKeepAliveThread::uninit()
+{
+    if(!isFinished())
+    {
+        terminate();
+    }
+
+    if(m_vpobjNetKeepAliveInfo)
+    {
+       delete [] m_vpobjNetKeepAliveInfo;
+       m_vpobjNetKeepAliveInfo = NULL;
+    }
+
+    m_nNetKeepAliveInfoSize = 0;
 }
 
 bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo, quint32 &p_nSissionID, quint32 &p_nIndex)
@@ -239,7 +262,7 @@ bool NetKeepAliveThread::addAlive(const NetKeepAliveInfo &p_objNetKeepAliveInfo,
             {
                 QMutexLocker objLoceker(&m_objKeepAliveMutex);
                 p_nSissionID = m_nSissionID++;
-                if(p_nSissionID > 99999999)
+                if(p_nSissionID > 999999999)
                 {
                     m_nSissionID = 1;
                 }

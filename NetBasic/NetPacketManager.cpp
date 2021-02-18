@@ -4,10 +4,13 @@
 #include "NetPacketHttp.h"
 #include "NetLog.h"
 
-NetPacketManager::NetPacketManager()
+NetPacketManager::NetPacketManager():m_pMaster(NULL),m_fnSuccessReceivePacket(NULL),m_pobjNetProtocolParseBase(NULL)
 {
-    m_pMaster = NULL;
-    m_fnSuccessReceivePacket = NULL;
+}
+
+NetPacketManager::~NetPacketManager()
+{
+    uninit();
 }
 
 bool NetPacketManager::init(qint32 p_nProtocolType, CallAppReceivePacket p_fnSuccessReceivePacket, void *p_pMaster)
@@ -22,6 +25,8 @@ bool NetPacketManager::init(qint32 p_nProtocolType, CallAppReceivePacket p_fnSuc
         return true;
     }
 
+    NETLOG(NET_LOG_LEVEL_ERROR, QString("ProtocolType not supportted"));
+
     return false;
 }
 
@@ -33,6 +38,7 @@ void NetPacketManager::uninit()
     if(m_pobjNetProtocolParseBase)
     {
         delete m_pobjNetProtocolParseBase;
+        m_pobjNetProtocolParseBase = NULL;
     }
 }
 
@@ -42,6 +48,8 @@ NetPacketBase *NetPacketManager::allocPacket()
     {
         return new NetPacketHttp;
     }
+
+    Q_ASSERT(NULL);
 
     return NULL;
 }

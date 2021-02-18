@@ -46,6 +46,7 @@ class NetKeepAliveThread : public QThread
 {
 public:
     NetKeepAliveThread();
+    ~NetKeepAliveThread();
 
 protected:
     virtual	void	run();
@@ -53,6 +54,7 @@ protected:
 public:
 
     bool init(qint32 p_nMaxQueueSize, qint32 p_nProtocolType);
+    void uninit();
 
     bool addAlive(const NetKeepAliveInfo& p_objNetKeepAliveInfo, quint32& p_nSissionID, quint32& p_nIndex);
     bool delAlive(const quint64 p_nSocket, const quint32 p_nSissionID, const quint32 p_nIndex);

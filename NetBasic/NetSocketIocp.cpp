@@ -21,8 +21,33 @@ NetSocketIocp::~NetSocketIocp()
     // 关闭IOCP句柄
     RELEASE_HANDLE(m_hIOCompletionPort);
 
+    if(m_pListenContext)
+    {
+        closesocket(m_pListenContext->m_Socket);
+    }
     // 关闭监听Socket
     RELEASE(m_pListenContext);
+
+    bool bIsNoQuit = true;
+    while(bIsNoQuit)
+    {
+        bIsNoQuit = false;
+        for (int i = 0; i < m_vecNetSocketIocpThread.size(); i++)
+        {
+            if(!m_vecNetSocketIocpThread.at(i)->isFinished())
+            {
+                bIsNoQuit = true;
+                QThread::msleep(20);
+            }
+        }
+    }
+
+    for (int i = 0; i < m_vecNetSocketIocpThread.size(); i++)
+    {
+        delete m_vecNetSocketIocpThread.at(i);
+    }
+
+    m_vecNetSocketIocpThread.clear();
 }
 
 bool NetSocketIocp::init(const qint32 p_nThreadNum, NetPacketManager* p_pobjNetPacketManager, NetKeepAliveThread *p_pobjNetKeepAliveThread, const QString& p_strKeyPath = "", const QString& p_strCertPath = "")
