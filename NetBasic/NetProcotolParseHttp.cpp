@@ -135,6 +135,11 @@ bool NetProcotolParseHttp::prepareResponse(NetPacketBase* p_pobjHttpPacket, QByt
         p_bytResByte.append(QString("Content-Length: %1\r\n\r\n").arg(pobjHttpPacket->m_bytData.size()));
         p_bytResByte.append(pobjHttpPacket->m_bytData);
     }
+    else
+    {
+        p_bytResByte.append(QString("Content-Length: 0\r\n\r\n"));
+        p_bytResByte.append(pobjHttpPacket->m_bytData);
+    }
 
     return true;
 }
