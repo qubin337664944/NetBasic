@@ -427,10 +427,12 @@ bool NetSocketIocpSSL::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_nTimeOutS = p_pobjNetPacketBase->m_nTimeOutS;
 
 
+    pobjSocketContext->appendSendContext(pobjIoContext);
     bool bRet = postSend(pobjIoContext);
     if(!bRet)
     {
         RELEASE(pobjIoContext);
+        pobjSocketContext->cancelSendContext(pobjIoContext);
     }
 
     m_pobjNetKeepAliveThread->unlockIndex(p_pobjNetPacketBase->m_nIndex);

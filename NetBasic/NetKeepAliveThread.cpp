@@ -315,39 +315,39 @@ bool NetKeepAliveThread::setCheckSend(const quint64 p_nSocket, const quint32 p_n
             m_vpobjNetKeepAliveInfo[p_nIndex].nSendTimeOutS = p_nSendTimeout;
         }
 
-    #ifdef WIN32
-        if(m_nProtocolType == NET_PROTOCOL_HTTPS)
-        {
-            SOCKET_CONTEXT_SSL* pobjContext = (SOCKET_CONTEXT_SSL*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
-            if(p_objContxt != NULL && pobjContext != NULL)
-            {
-                if(p_bCheck)
-                {
-                    pobjContext->appendSendContext((IO_CONTEXT_SSL*)p_objContxt);
-                }
-                else
-                {
-                    pobjContext->cancelSendContext((IO_CONTEXT_SSL*)p_objContxt);
-                }
-            }
-        }
-        else
-        {
-            SOCKET_CONTEXT* pobjContext = (SOCKET_CONTEXT*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
-            if(p_objContxt != NULL && pobjContext != NULL)
-            {
-                if(p_bCheck)
-                {
-                    pobjContext->appendSendContext((IO_CONTEXT*)p_objContxt);
-                }
-                else
-                {
-                    pobjContext->cancelSendContext((IO_CONTEXT*)p_objContxt);
-                }
-            }
-        }
+//    #ifdef WIN32
+//        if(m_nProtocolType == NET_PROTOCOL_HTTPS)
+//        {
+//            SOCKET_CONTEXT_SSL* pobjContext = (SOCKET_CONTEXT_SSL*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+//            if(p_objContxt != NULL && pobjContext != NULL)
+//            {
+//                if(p_bCheck)
+//                {
+//                    pobjContext->appendSendContext((IO_CONTEXT_SSL*)p_objContxt);
+//                }
+//                else
+//                {
+//                    pobjContext->cancelSendContext((IO_CONTEXT_SSL*)p_objContxt);
+//                }
+//            }
+//        }
+//        else
+//        {
+//            SOCKET_CONTEXT* pobjContext = (SOCKET_CONTEXT*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+//            if(p_objContxt != NULL && pobjContext != NULL)
+//            {
+//                if(p_bCheck)
+//                {
+//                    pobjContext->appendSendContext((IO_CONTEXT*)p_objContxt);
+//                }
+//                else
+//                {
+//                    pobjContext->cancelSendContext((IO_CONTEXT*)p_objContxt);
+//                }
+//            }
+//        }
 
-    #endif
+//    #endif
         m_vpobjNetKeepAliveInfo[p_nIndex].bCheckSendTime = p_bCheck;
         return true;
     }
@@ -372,38 +372,38 @@ bool NetKeepAliveThread::setCheckReceive(const quint64 p_nSocket, const quint32 
             m_vpobjNetKeepAliveInfo[p_nIndex].nReceiveTimeOutS = p_nReceiveTimeout;
         }
 
-#ifdef WIN32
-        if(m_nProtocolType == NET_PROTOCOL_HTTPS)
-        {
-            SOCKET_CONTEXT_SSL* pobjContext = (SOCKET_CONTEXT_SSL*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
-            if(p_objContxt != NULL && pobjContext != NULL)
-            {
-                if(p_bCheck)
-                {
-                    pobjContext->appendReceiveContext((IO_CONTEXT_SSL*)p_objContxt);
-                }
-                else
-                {
-                    pobjContext->cancelReceiveContext((IO_CONTEXT_SSL*)p_objContxt);
-                }
-            }
-        }
-        else
-        {
-            SOCKET_CONTEXT* pobjContext = (SOCKET_CONTEXT*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
-            if(p_objContxt != NULL && pobjContext != NULL)
-            {
-                if(p_bCheck)
-                {
-                    pobjContext->appendReceiveContext((IO_CONTEXT*)p_objContxt);
-                }
-                else
-                {
-                    pobjContext->cancelReceiveContext((IO_CONTEXT*)p_objContxt);
-                }
-            }
-        }
-#endif
+//#ifdef WIN32
+//        if(m_nProtocolType == NET_PROTOCOL_HTTPS)
+//        {
+//            SOCKET_CONTEXT_SSL* pobjContext = (SOCKET_CONTEXT_SSL*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+//            if(p_objContxt != NULL && pobjContext != NULL)
+//            {
+//                if(p_bCheck)
+//                {
+//                    pobjContext->appendReceiveContext((IO_CONTEXT_SSL*)p_objContxt);
+//                }
+//                else
+//                {
+//                    pobjContext->cancelReceiveContext((IO_CONTEXT_SSL*)p_objContxt);
+//                }
+//            }
+//        }
+//        else
+//        {
+//            SOCKET_CONTEXT* pobjContext = (SOCKET_CONTEXT*)m_vpobjNetKeepAliveInfo[p_nIndex].pobjExtend;
+//            if(p_objContxt != NULL && pobjContext != NULL)
+//            {
+//                if(p_bCheck)
+//                {
+//                    pobjContext->appendReceiveContext((IO_CONTEXT*)p_objContxt);
+//                }
+//                else
+//                {
+//                    pobjContext->cancelReceiveContext((IO_CONTEXT*)p_objContxt);
+//                }
+//            }
+//        }
+//#endif
 
         m_vpobjNetKeepAliveInfo[p_nIndex].bCheckReceiveTime = p_bCheck;
 

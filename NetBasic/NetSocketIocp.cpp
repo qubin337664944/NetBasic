@@ -250,9 +250,12 @@ bool NetSocketIocp::send(NetPacketBase *p_pobjNetPacketBase)
     pobjIoContext->m_nSendDataSize = pobjIoContext->m_wsaBuf.len;
     pobjIoContext->m_nSendIndex = 0;
 
+    SOCKET_CONTEXT* pSocketContext = (SOCKET_CONTEXT*)pobjContext;
+    pSocketContext->appendSendContext(pobjIoContext);
     bool bRet = postSend(pobjIoContext);
     if(!bRet)
     {
+        pSocketContext->cancelSendContext(pobjIoContext);
         delete pobjIoContext;
         pobjIoContext = NULL;
     }

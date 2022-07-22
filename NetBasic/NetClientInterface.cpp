@@ -1083,6 +1083,11 @@ bool NetClientInterface::base_send(int p_nfd, const int p_nTimeout)
     QDateTime timeSendLimit = time;
     while (true)
     {
+        if(nSendLength > RECEIVE_TEMP_SIZE)
+        {
+            nSendLength = RECEIVE_TEMP_SIZE;
+        }
+
         int SendLen =0;
 #ifdef USE_HTTPS
         if(m_bUseHttpsFlag)
